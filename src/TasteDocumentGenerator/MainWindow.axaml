@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        Width="800"
+        Height="600"
+        Background="#202020"
+        ExtendClientAreaToDecorationsHint="True"
+        IsHitTestVisible="True"
+        BorderBrush="DarkGray"
+        BorderThickness="1"
+        Icon="/assets/Icon.ico"
+        x:Class="TasteDocumentGenerator.MainWindow"
+        Title="TASTE Document Generator">
+
+<Grid RowDefinitions="AUTO,*">
+        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal">
+            <Image Source="/assets/Icon.ico" Margin="4,4,4,4" Width="24" Height="24" HorizontalAlignment="Left"/>
+            <Menu IsVisible="True">
+                <MenuItem Header="_Help">
+                    <MenuItem Header="About"/>
+                </MenuItem>
+            </Menu>
+            <TextBlock VerticalAlignment="Center" Text="TASTE Document Generator" IsVisible="True"/>
+        </StackPanel>
+        <Grid Grid.Row="1" RowDefinitions="*,AUTO,AUTO,AUTO">
+            <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" CornerRadius="2">
+                <ScrollViewer HorizontalAlignment="Stretch">
+                    <Grid RowDefinitions="AUTO,AUTO,AUTO" HorizontalAlignment="Stretch">
+                        <Expander Name="Options" Grid.Row="0" Margin="10,10,10,10" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                            <Expander.Header>
+                                <TextBlock Text="Options"/>
+                            </Expander.Header>
+                        </Expander>
+                    </Grid>
+                </ScrollViewer>
+            </Border>
+            <TextBlock Grid.Row="1" Margin="10,10,10,10" Text="Output file" VerticalAlignment="Center"/>
+            <Grid Grid.Row="2" ColumnDefinitions="*,AUTO">
+                <TextBox Name="OutputTextBox" Grid.Column="0" Margin="10,10,10,10" VerticalAlignment="Center" Text="File Name"/>
+                <Button Grid.Column="1" Margin="10,10,10,10" VerticalAlignment="Center" >...</Button>
+            </Grid>
+            <StackPanel Grid.Row="3">
+                <Button Margin="10,10,10,10" VerticalAlignment="Center" HorizontalAlignment="Right" >Generate document</Button>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

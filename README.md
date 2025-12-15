@@ -1,1 +1,1 @@
-# taste-document-generator
+# Taste Document Generator
