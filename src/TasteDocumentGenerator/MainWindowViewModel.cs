@@ -10,6 +10,8 @@ using CommunityToolkit.Mvvm.Input;
 using System.IO;
 using System.Text.Json;
 using System.Linq;
+using MsBox.Avalonia;
+using MsBox.Avalonia.Enums;
 
 namespace TasteDocumentGenerator;
 
@@ -24,6 +26,7 @@ public partial class MainWindowViewModel : ObservableObject
         public string OutputFilePath { get; set; } = "sdd.docx";
         public string InputTemplateDirectoryPath { get; set; } = "";
         public string Target { get; set; } = "ASW";
+        public bool DoOpenDocument { get; set; } = false;
     }
 
     private static string GetSettingsFilePath()
@@ -49,6 +52,7 @@ public partial class MainWindowViewModel : ObservableObject
                     OutputFilePath = settings.OutputFilePath;
                     Target = settings.Target;
                     InputTemplateDirectoryPath = settings.InputTemplateDirectoryPath;
+                    DoOpenDocument = settings.DoOpenDocument;
                 }
             }
         }
@@ -70,7 +74,8 @@ public partial class MainWindowViewModel : ObservableObject
                 InputTemplatePath = InputTemplatePath,
                 OutputFilePath = OutputFilePath,
                 Target = Target,
-                InputTemplateDirectoryPath = InputTemplateDirectoryPath
+                InputTemplateDirectoryPath = InputTemplateDirectoryPath,
+                DoOpenDocument = DoOpenDocument
             };
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(GetSettingsFilePath(), json);
@@ -107,6 +112,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _outputFilePath = "sdd.docx";
+
+    [ObservableProperty]
+    private bool _doOpenDocument = false;
 
     private IStorageProvider GetStorageProvider()
     {
@@ -170,6 +178,15 @@ public partial class MainWindowViewModel : ObservableObject
         await Task.CompletedTask;
     }
 
+    private void OpenDocument(string path)
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = path,
+            UseShellExecute = true
+        });
+    }
+
     [RelayCommand]
     private async Task GenerateDocumentAsync()
     {
@@ -181,11 +198,41 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var context = new DocumentAssembler.Context(InputInterfaceViewPath, InputDeploymentViewPath, Target, InputTemplateDirectoryPath, tempDir);
             await da.ProcessTemplate(context, InputTemplatePath, OutputFilePath);
+            var messageBox = MessageBoxManager.GetMessageBoxStandard(
+                "Success",
+                $"Document {OutputFilePath} has been successfully created",
+                ButtonEnum.Ok,
+                Icon.Info);
+            await messageBox.ShowAsync();
+            if (DoOpenDocument)
+            {
+                OpenDocument(OutputFilePath);
+            }
+        }
+        catch (Exception e)
+        {
+            var messageBox = MessageBoxManager.GetMessageBoxStandard(
+                "Error",
+                $"An error occurred while generating the document:\n\n{e.Message}",
+                ButtonEnum.Ok,
+                Icon.Error);
+            await messageBox.ShowAsync();
         }
         finally
         {
             Directory.Delete(tempDir, true);
         }
 
+    }
+
+    [RelayCommand]
+    private async Task ShowAboutAsync()
+    {
+        var messageBox = MessageBoxManager.GetMessageBoxStandard(
+            "About",
+            $"TASTE Document Generator\nCreated by N7 Space\n within the scope of Model Based Execution Platform Project\nESA Contract 4000146882/24/NL/KK",
+            ButtonEnum.Ok,
+            Icon.Info);
+        await messageBox.ShowAsync();
     }
 }
