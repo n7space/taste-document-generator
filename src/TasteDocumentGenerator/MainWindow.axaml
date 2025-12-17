@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:TasteDocumentGenerator"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         Width="800"
         Height="450"
@@ -12,6 +13,7 @@
         BorderThickness="1"
         Icon="/assets/Icon.ico"
         x:Class="TasteDocumentGenerator.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
         Title="TASTE Document Generator">
 
 <Grid RowDefinitions="AUTO,*">
@@ -34,13 +36,13 @@
                             </Expander.Header>
                             <Grid ColumnDefinitions="AUTO,*" RowDefinitions="AUTO,AUTO,AUTO,AUTO">
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Interface View" VerticalAlignment="Center"/>
-                                <TextBox Name="InputInterfaceViewPath" Grid.Row="0" Grid.Column="1" Text="interfaceview.xml" VerticalAlignment="Center" Margin="10,10,10,0"/>
+                                <TextBox Name="InputInterfaceViewPath" Grid.Row="0" Grid.Column="1" Text="{Binding InputInterfaceViewPath}" VerticalAlignment="Center" Margin="10,10,10,0"/>
 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Deployment View" VerticalAlignment="Center"/>
-                                <TextBox Name="InputDeploymentViewPath" Grid.Row="1" Grid.Column="1" Text="deploymentview.dv.xml" VerticalAlignment="Center" Margin="10,10,10,0"/>
+                                <TextBox Name="InputDeploymentViewPath" Grid.Row="1" Grid.Column="1" Text="{Binding InputDeploymentViewPath}" VerticalAlignment="Center" Margin="10,10,10,0"/>
 
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="OPUS2 Model" VerticalAlignment="Center"/>
-                                <TextBox Name="InputOpus2ModelPath" Grid.Row="2" Grid.Column="1" Text="opus2_model.xml" VerticalAlignment="Center" Margin="10,10,10,0"/>
+                                <TextBox Name="InputOpus2ModelPath" Grid.Row="2" Grid.Column="1" Text="{Binding InputOpus2ModelPath}" VerticalAlignment="Center" Margin="10,10,10,0"/>
                             </Grid>
                         </Expander>
                     </Grid>
@@ -48,14 +50,14 @@
             </Border>
             <Grid Grid.Row="1" RowDefinitions="AUTO,AUTO" ColumnDefinitions="AUTO,*,AUTO">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Input template path" VerticalAlignment="Center" Margin="10,10,10,10" />
-                <TextBox Grid.Row="0" Grid.Column="1" Name="InputTemplatePath" Text="sdd-template.docx"  VerticalAlignment="Center" Margin="10,10,10,10"/>
-                <Button Name="SelectInputTemplatePath" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" >...</Button>
+                <TextBox Grid.Row="0" Grid.Column="1" Name="InputTemplatePath" Text="{Binding InputTemplatePath}"  VerticalAlignment="Center" Margin="10,10,10,10"/>
+                <Button Name="SelectInputTemplatePath" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" Command="{Binding SelectInputTemplatePathCommand}">...</Button>
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Output file path" VerticalAlignment="Center" Margin="10,10,10,10" />
-                <TextBox Grid.Row="1" Grid.Column="1" Name="OutputFilePath" Text="sdd.docx"  VerticalAlignment="Center" Margin="10,10,10,10"/>
-                <Button Name="SelectOutputFilePath" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" >...</Button>
+                <TextBox Grid.Row="1" Grid.Column="1" Name="OutputFilePath" Text="{Binding OutputFilePath}"  VerticalAlignment="Center" Margin="10,10,10,10"/>
+                <Button Name="SelectOutputFilePath" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" Command="{Binding SelectOutputFilePathCommand}">...</Button>
             </Grid>
             <StackPanel Grid.Row="2">
-                <Button Name="GenerateDocument" Margin="10,10,10,10" VerticalAlignment="Center" HorizontalAlignment="Right" >Generate document</Button>
+                <Button Name="GenerateDocument" Margin="10,10,10,10" VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding GenerateDocumentCommand}">Generate document</Button>
             </StackPanel>
         </Grid>
     </Grid>
