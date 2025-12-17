@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.IO;
 using System.Text.Json;
+using System.Linq;
 
 namespace TasteDocumentGenerator;
 
@@ -110,12 +111,12 @@ public partial class MainWindowViewModel : ObservableObject
     {
         var storageProvider = GetStorageProvider();
 
-        var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        var file = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Select input template path",
-            DefaultExtension = "docx",
+            SuggestedFileType = new FilePickerFileType("docx"),
             SuggestedFileName = InputTemplatePath,
-            FileTypeChoices = new[]
+            FileTypeFilter = new[]
             {
                         new FilePickerFileType("Word Documents")
                         {
@@ -124,9 +125,9 @@ public partial class MainWindowViewModel : ObservableObject
                     }
         });
 
-        if (file != null)
+        if (file != null && file.Count > 0)
         {
-            InputTemplatePath = file.Path.LocalPath;
+            InputTemplatePath = file[0].Path.LocalPath;
         }
         await Task.CompletedTask;
     }

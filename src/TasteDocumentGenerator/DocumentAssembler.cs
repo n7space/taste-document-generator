@@ -73,7 +73,7 @@ class DocumentAssembler
         var processInfo = new ProcessStartInfo
         {
             FileName = "template-processor",
-            Arguments = $" --verbosity info --iv {context.InterfaceViewPath} --dv {context.DeploymentViewPath} -o {context.TemporaryDirectory} -t {templatePath} -p md2docx",
+            Arguments = $" --verbosity info --iv {context.InterfaceViewPath} --dv {context.DeploymentViewPath} -o {context.TemporaryDirectory} -t {templatePath} -p md2docx --value TARGET=ASW",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -81,20 +81,31 @@ class DocumentAssembler
         };
 
         using var process = Process.Start(processInfo);
-        if (process != null)
+        if (process is null)
         {
-            await process.WaitForExitAsync();
+            throw new Exception("Could not start template-procesoor");    
         }
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+            
+        await process.WaitForExitAsync();
+            
+        var standardOutput = await outputTask;
+        var standardError = await errorTask;
+        var processOutput = standardOutput + standardError;
+
 
         var baseName = Path.GetFileNameWithoutExtension(templatePath);
         var instancePath = Path.Join(context.TemporaryDirectory, $"{baseName}.docx" );
         
         if (!Path.Exists(instancePath))
         {
-            throw new Exception($"File {instancePath} does not exist, did template instantiation fail?");
+            throw new Exception($"File {instancePath} does not exist, did template instantiation fail? Template instantiation process output: {processOutput}");
         }
 
         paragraph.RemoveAllChildren<DocumentFormat.OpenXml.Wordprocessing.Run>();
+        var parent = paragraph.Parent!;
+        OpenXmlElement insertionPoint = paragraph;
 
         using (var sourceDocument = WordprocessingDocument.Open(instancePath, false))
         {
@@ -104,7 +115,8 @@ class DocumentAssembler
                 foreach (var element in sourceBody.Elements())
                 {
                     var clonedElement = element.CloneNode(true);
-                    paragraph.AppendChild(clonedElement);
+                    parent.InsertAfter(clonedElement, insertionPoint);
+                    insertionPoint = clonedElement;
                 }
             }
         }
