@@ -19,15 +19,19 @@ class DocumentAssembler
 
     public class Context
     {
+        public string Target;
+        public string TemplateDirectory;
         public string InterfaceViewPath;
         public string DeploymentViewPath;
         public string TemporaryDirectory;
 
-        public Context(string InterfaceViewPath, string DeploymentViewPath, string TemporaryDirectory)
+        public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory)
         {
             this.InterfaceViewPath = InterfaceViewPath;
             this.DeploymentViewPath = DeploymentViewPath;
             this.TemporaryDirectory = TemporaryDirectory;
+            this.TemplateDirectory = TemplateDirectory;
+            this.Target = Target;
         }
     }
 
@@ -58,8 +62,29 @@ class DocumentAssembler
                 }
             }
         }
-        
+
         return hooks;
+    }
+
+    public void InsertDocumentIntoParagraph(string path, Paragraph paragraph)
+    {
+        paragraph.RemoveAllChildren<DocumentFormat.OpenXml.Wordprocessing.Run>();
+        var parent = paragraph.Parent!;
+        OpenXmlElement insertionPoint = paragraph;
+
+        using (var sourceDocument = WordprocessingDocument.Open(path, false))
+        {
+            var sourceBody = sourceDocument.MainDocumentPart?.Document.Body;
+            if (sourceBody != null)
+            {
+                foreach (var element in sourceBody.Elements())
+                {
+                    var clonedElement = element.CloneNode(true);
+                    parent.InsertAfter(clonedElement, insertionPoint);
+                    insertionPoint = clonedElement;
+                }
+            }
+        }
     }
 
     public async Task ProcessParagraphWithTemplate(Context context, Paragraph paragraph, string[] command)
@@ -83,43 +108,27 @@ class DocumentAssembler
         using var process = Process.Start(processInfo);
         if (process is null)
         {
-            throw new Exception("Could not start template-procesoor");    
+            throw new Exception("Could not start template-procesoor");
         }
         var outputTask = process.StandardOutput.ReadToEndAsync();
         var errorTask = process.StandardError.ReadToEndAsync();
-            
+
         await process.WaitForExitAsync();
-            
+
         var standardOutput = await outputTask;
         var standardError = await errorTask;
         var processOutput = standardOutput + standardError;
 
 
         var baseName = Path.GetFileNameWithoutExtension(templatePath);
-        var instancePath = Path.Join(context.TemporaryDirectory, $"{baseName}.docx" );
-        
+        var instancePath = Path.Join(context.TemporaryDirectory, $"{baseName}.docx");
+
         if (!Path.Exists(instancePath))
         {
             throw new Exception($"File {instancePath} does not exist, did template instantiation fail? Template instantiation process output: {processOutput}");
         }
 
-        paragraph.RemoveAllChildren<DocumentFormat.OpenXml.Wordprocessing.Run>();
-        var parent = paragraph.Parent!;
-        OpenXmlElement insertionPoint = paragraph;
-
-        using (var sourceDocument = WordprocessingDocument.Open(instancePath, false))
-        {
-            var sourceBody = sourceDocument.MainDocumentPart?.Document.Body;
-            if (sourceBody != null)
-            {                
-                foreach (var element in sourceBody.Elements())
-                {
-                    var clonedElement = element.CloneNode(true);
-                    parent.InsertAfter(clonedElement, insertionPoint);
-                    insertionPoint = clonedElement;
-                }
-            }
-        }
+        InsertDocumentIntoParagraph(instancePath, paragraph);
     }
 
     public async Task ProcessParagraph(Context context, Paragraph paragraph)
@@ -142,7 +151,8 @@ class DocumentAssembler
                 {
                     break;
                 }
-        };
+        }
+        ;
     }
 
     public async Task ProcessTemplate(Context context, string inputTemplatePath, string outputDocumentPath)
@@ -152,12 +162,12 @@ class DocumentAssembler
         using (var document = WordprocessingDocument.Open(outputDocumentPath, true))
         {
             var hooks = FindHooks(document, "template");
-            
+
             foreach (var paragraph in hooks)
             {
                 await ProcessParagraph(context, paragraph);
             }
-            
+
             document.Save();
         }
 

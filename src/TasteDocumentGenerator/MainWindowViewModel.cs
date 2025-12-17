@@ -22,6 +22,8 @@ public partial class MainWindowViewModel : ObservableObject
         public string InputOpus2ModelPath { get; set; } = "opus2_model.xml";
         public string InputTemplatePath { get; set; } = "sdd-template.docx";
         public string OutputFilePath { get; set; } = "sdd.docx";
+        public string InputTemplateDirectoryPath { get; set; } = "";
+        public string Target { get; set; } = "ASW";
     }
 
     private static string GetSettingsFilePath()
@@ -40,11 +42,13 @@ public partial class MainWindowViewModel : ObservableObject
                 var settings = JsonSerializer.Deserialize<Settings>(json);
                 if (settings != null)
                 {
-                    _inputInterfaceViewPath = settings.InputInterfaceViewPath;
-                    _inputDeploymentViewPath = settings.InputDeploymentViewPath;
-                    _inputOpus2ModelPath = settings.InputOpus2ModelPath;
-                    _inputTemplatePath = settings.InputTemplatePath;
-                    _outputFilePath = settings.OutputFilePath;
+                    InputInterfaceViewPath = settings.InputInterfaceViewPath;
+                    InputDeploymentViewPath = settings.InputDeploymentViewPath;
+                    InputOpus2ModelPath = settings.InputOpus2ModelPath;
+                    InputTemplatePath = settings.InputTemplatePath;
+                    OutputFilePath = settings.OutputFilePath;
+                    Target = settings.Target;
+                    InputTemplateDirectoryPath = settings.InputTemplateDirectoryPath;
                 }
             }
         }
@@ -64,7 +68,9 @@ public partial class MainWindowViewModel : ObservableObject
                 InputDeploymentViewPath = InputDeploymentViewPath,
                 InputOpus2ModelPath = InputOpus2ModelPath,
                 InputTemplatePath = InputTemplatePath,
-                OutputFilePath = OutputFilePath
+                OutputFilePath = OutputFilePath,
+                Target = Target,
+                InputTemplateDirectoryPath = InputTemplateDirectoryPath
             };
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(GetSettingsFilePath(), json);
@@ -89,6 +95,12 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _inputOpus2ModelPath = "opus2_model.xml";
+
+    [ObservableProperty]
+    private string _inputTemplateDirectoryPath = "";
+
+    [ObservableProperty]
+    private string _target = "ASW";
 
     [ObservableProperty]
     private string _inputTemplatePath = "sdd-template.docx";
@@ -167,7 +179,7 @@ public partial class MainWindowViewModel : ObservableObject
         Directory.CreateDirectory(tempDir);
         try
         {
-            var context = new DocumentAssembler.Context(InputInterfaceViewPath, InputDeploymentViewPath, tempDir);
+            var context = new DocumentAssembler.Context(InputInterfaceViewPath, InputDeploymentViewPath, Target, InputTemplateDirectoryPath, tempDir);
             await da.ProcessTemplate(context, InputTemplatePath, OutputFilePath);
         }
         finally
