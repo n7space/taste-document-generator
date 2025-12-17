@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TasteDocumentGenerator": {
+      "commandName": "Project",
+      "commandLineArgs": "gui"
+    }
+  }
+}

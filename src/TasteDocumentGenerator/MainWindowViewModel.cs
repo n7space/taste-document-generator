@@ -93,6 +93,8 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task GenerateDocumentAsync()
     {
 
-        await Task.CompletedTask;
+        var da = new DocumentAssembler();
+        var context = new DocumentAssembler.Context(InputInterfaceViewPath, InputDeploymentViewPath);
+        await da.ProcessTemplate(context, InputTemplatePath, OutputFilePath);
     }
 }
