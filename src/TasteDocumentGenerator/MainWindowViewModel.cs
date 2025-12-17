@@ -7,6 +7,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.IO;
 
 namespace TasteDocumentGenerator;
 
@@ -92,9 +93,19 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task GenerateDocumentAsync()
     {
-
         var da = new DocumentAssembler();
-        var context = new DocumentAssembler.Context(InputInterfaceViewPath, InputDeploymentViewPath);
-        await da.ProcessTemplate(context, InputTemplatePath, OutputFilePath);
+
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var context = new DocumentAssembler.Context(InputInterfaceViewPath, InputDeploymentViewPath, tempDir);
+            await da.ProcessTemplate(context, InputTemplatePath, OutputFilePath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+
     }
 }

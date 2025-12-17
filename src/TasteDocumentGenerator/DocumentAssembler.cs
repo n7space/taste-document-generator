@@ -1,12 +1,15 @@
 namespace TasteDocumentGenerator;
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 
 class DocumentAssembler
 {
@@ -18,13 +21,21 @@ class DocumentAssembler
     {
         public string InterfaceViewPath;
         public string DeploymentViewPath;
+        public string TemporaryDirectory;
 
-        public Context(string InterfaceViewPath, string DeploymentViewPath)
+        public Context(string InterfaceViewPath, string DeploymentViewPath, string TemporaryDirectory)
         {
             this.InterfaceViewPath = InterfaceViewPath;
             this.DeploymentViewPath = DeploymentViewPath;
+            this.TemporaryDirectory = TemporaryDirectory;
         }
     }
+
+    private string GetAllText(Paragraph paragraph) =>
+        string.Concat(paragraph.Descendants<DocumentFormat.OpenXml.Wordprocessing.Text>().Select(t => t.Text)).Trim();
+
+
+    private string ExtractCommand(string text) => text.Substring(BEGIN.Length, text.Length - (BEGIN.Length + END.Length)).Trim();
 
     private List<DocumentFormat.OpenXml.Wordprocessing.Paragraph> FindHooks(WordprocessingDocument document, string prefix)
     {
@@ -37,10 +48,10 @@ class DocumentAssembler
         }
         foreach (var paragraph in body.Descendants<DocumentFormat.OpenXml.Wordprocessing.Paragraph>())
         {
-            var text = string.Concat(paragraph.Descendants<DocumentFormat.OpenXml.Wordprocessing.Text>().Select(t => t.Text)).Trim();
+            var text = GetAllText(paragraph);
             if (text.StartsWith(BEGIN) && text.EndsWith(END))
             {
-                var content = text.Substring(BEGIN.Length, text.Length - (BEGIN.Length + END.Length)).Trim();
+                var content = ExtractCommand(text);
                 if (content.StartsWith(prefix))
                 {
                     hooks.Add(paragraph);
@@ -49,6 +60,77 @@ class DocumentAssembler
         }
         
         return hooks;
+    }
+
+    public async Task ProcessParagraphWithTemplate(Context context, Paragraph paragraph, string[] command)
+    {
+        // First argument shall be a template
+        var templatePath = command[1];
+        if (command.Length != 2)
+        {
+            throw new Exception($"Incorrect template invocation: {string.Join(" ", command)}");
+        }
+        var processInfo = new ProcessStartInfo
+        {
+            FileName = "template-processor",
+            Arguments = $" --verbosity info --iv {context.InterfaceViewPath} --dv {context.DeploymentViewPath} -o {context.TemporaryDirectory} -t {templatePath} -p md2docx",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = false
+        };
+
+        using var process = Process.Start(processInfo);
+        if (process != null)
+        {
+            await process.WaitForExitAsync();
+        }
+
+        var baseName = Path.GetFileNameWithoutExtension(templatePath);
+        var instancePath = Path.Join(context.TemporaryDirectory, $"{baseName}.docx" );
+        
+        if (!Path.Exists(instancePath))
+        {
+            throw new Exception($"File {instancePath} does not exist, did template instantiation fail?");
+        }
+
+        paragraph.RemoveAllChildren<DocumentFormat.OpenXml.Wordprocessing.Run>();
+
+        using (var sourceDocument = WordprocessingDocument.Open(instancePath, false))
+        {
+            var sourceBody = sourceDocument.MainDocumentPart?.Document.Body;
+            if (sourceBody != null)
+            {                
+                foreach (var element in sourceBody.Elements())
+                {
+                    var clonedElement = element.CloneNode(true);
+                    paragraph.AppendChild(clonedElement);
+                }
+            }
+        }
+    }
+
+    public async Task ProcessParagraph(Context context, Paragraph paragraph)
+    {
+        var text = GetAllText(paragraph);
+        var command = ExtractCommand(text).Split(" ");
+        if (command.Length == 0)
+        {
+            return;
+        }
+        var commandName = command[0];
+        switch (commandName)
+        {
+            case "template":
+                {
+                    await ProcessParagraphWithTemplate(context, paragraph, command);
+                    break;
+                }
+            default:
+                {
+                    break;
+                }
+        };
     }
 
     public async Task ProcessTemplate(Context context, string inputTemplatePath, string outputDocumentPath)
@@ -61,9 +143,7 @@ class DocumentAssembler
             
             foreach (var paragraph in hooks)
             {
-                paragraph.RemoveAllChildren<DocumentFormat.OpenXml.Wordprocessing.Run>();
-                paragraph.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Run(
-                    new DocumentFormat.OpenXml.Wordprocessing.Text("FOUND!")));
+                await ProcessParagraph(context, paragraph);
             }
             
             document.Save();
