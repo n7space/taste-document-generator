@@ -34,13 +34,13 @@
                             </Expander.Header>
                             <Grid ColumnDefinitions="AUTO,*" RowDefinitions="AUTO,AUTO,AUTO,AUTO">
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Interface View" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="0" Grid.Column="1" Text="interfaceview.xml" VerticalAlignment="Center" Margin="10,10,10,0"/>
+                                <TextBox Name="InputInterfaceViewPath" Grid.Row="0" Grid.Column="1" Text="interfaceview.xml" VerticalAlignment="Center" Margin="10,10,10,0"/>
 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Deployment View" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="1" Grid.Column="1" Text="deploymentview.dv.xml" VerticalAlignment="Center" Margin="10,10,10,0"/>
+                                <TextBox Name="InputDeploymentViewPath" Grid.Row="1" Grid.Column="1" Text="deploymentview.dv.xml" VerticalAlignment="Center" Margin="10,10,10,0"/>
 
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="OPUS2 Model" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="2" Grid.Column="1" Text="opus2_model.xml" VerticalAlignment="Center" Margin="10,10,10,0"/>
+                                <TextBox Name="InputOpus2ModelPath" Grid.Row="2" Grid.Column="1" Text="opus2_model.xml" VerticalAlignment="Center" Margin="10,10,10,0"/>
                             </Grid>
                         </Expander>
                     </Grid>
@@ -48,14 +48,14 @@
             </Border>
             <Grid Grid.Row="1" RowDefinitions="AUTO,AUTO" ColumnDefinitions="AUTO,*,AUTO">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Input template path" VerticalAlignment="Center" Margin="10,10,10,10" />
-                <TextBox Grid.Row="0" Grid.Column="1" Name="InputTemplatePathTextBox" Text="sdd-template.docx"  VerticalAlignment="Center" Margin="10,10,10,10"/>
-                <Button Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" >...</Button>
+                <TextBox Grid.Row="0" Grid.Column="1" Name="InputTemplatePath" Text="sdd-template.docx"  VerticalAlignment="Center" Margin="10,10,10,10"/>
+                <Button Name="SelectInputTemplatePath" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" >...</Button>
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Output file path" VerticalAlignment="Center" Margin="10,10,10,10" />
-                <TextBox Grid.Row="1" Grid.Column="1" Name="OutputTemplatePathTextBox" Text="sdd.docx"  VerticalAlignment="Center" Margin="10,10,10,10"/>
-                <Button Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" >...</Button>
+                <TextBox Grid.Row="1" Grid.Column="1" Name="OutputFilePath" Text="sdd.docx"  VerticalAlignment="Center" Margin="10,10,10,10"/>
+                <Button Name="SelectOutputFilePath" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" >...</Button>
             </Grid>
             <StackPanel Grid.Row="2">
-                <Button Margin="10,10,10,10" VerticalAlignment="Center" HorizontalAlignment="Right" >Generate document</Button>
+                <Button Name="GenerateDocument" Margin="10,10,10,10" VerticalAlignment="Center" HorizontalAlignment="Right" >Generate document</Button>
             </StackPanel>
         </Grid>
     </Grid>
