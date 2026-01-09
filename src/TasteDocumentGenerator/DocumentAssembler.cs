@@ -66,7 +66,7 @@ class DocumentAssembler
         return hooks;
     }
 
-    public void InsertDocumentIntoParagraph(string path, Paragraph paragraph)
+    public void InsertDocumentIntoParagraph(string path, WordprocessingDocument targetDocument, Paragraph paragraph)
     {
         paragraph.RemoveAllChildren<DocumentFormat.OpenXml.Wordprocessing.Run>();
         var parent = paragraph.Parent!;
@@ -74,12 +74,20 @@ class DocumentAssembler
 
         using (var sourceDocument = WordprocessingDocument.Open(path, false))
         {
+            Debug.Print("Source document styles:");
+            ListStyles(sourceDocument);
+            var styleIdMapping = MergeDocumentStyles(targetDocument, sourceDocument);
+            var numberingIdMapping = MergeNumberingDefinitions(targetDocument, sourceDocument);
+            UpdateStyleNumbering(targetDocument, numberIdMapping);
             var sourceBody = sourceDocument.MainDocumentPart?.Document.Body;
             if (sourceBody != null)
             {
                 foreach (var element in sourceBody.Elements())
                 {
                     var clonedElement = element.CloneNode(true);
+                    UpdateParagraphNumbering(clonedElement, numberingIdMapping);
+                    GetStyle(clonedElement);
+                    Debug.Print($"Cloning element {clonedElement.ToString()}");
                     parent.InsertAfter(clonedElement, insertionPoint);
                     insertionPoint = clonedElement;
                 }
@@ -87,7 +95,7 @@ class DocumentAssembler
         }
     }
 
-    public async Task ProcessParagraphWithTemplate(Context context, Paragraph paragraph, string[] command)
+    public async Task ProcessParagraphWithTemplate(Context context, WordprocessingDocument targetDocument, Paragraph paragraph, string[] command)
     {
         // First argument shall be a template
         var templatePath = command[1];
@@ -95,6 +103,7 @@ class DocumentAssembler
         {
             throw new Exception($"Incorrect template invocation: {string.Join(" ", command)}");
         }
+        Debug.Print($"Processing template {command[1]}");
         var processInfo = new ProcessStartInfo
         {
             FileName = "template-processor",
@@ -128,10 +137,10 @@ class DocumentAssembler
             throw new Exception($"File {instancePath} does not exist, did template instantiation fail? Template instantiation process output: {processOutput}");
         }
 
-        InsertDocumentIntoParagraph(instancePath, paragraph);
+        InsertDocumentIntoParagraph(instancePath, targetDocument, paragraph);
     }
 
-    public async Task ProcessParagraph(Context context, Paragraph paragraph)
+    public async Task ProcessParagraph(Context context, WordprocessingDocument targetDocument, Paragraph paragraph)
     {
         var text = GetAllText(paragraph);
         var command = ExtractCommand(text).Split(" ");
@@ -144,7 +153,7 @@ class DocumentAssembler
         {
             case "template":
                 {
-                    await ProcessParagraphWithTemplate(context, paragraph, command);
+                    await ProcessParagraphWithTemplate(context, targetDocument, paragraph, command);
                     break;
                 }
             default:
@@ -155,17 +164,264 @@ class DocumentAssembler
         ;
     }
 
+    public void GetStyle(OpenXmlElement element)
+    {
+        var styleId = element.GetType().GetProperty("StyleId")?.GetValue(element) as StringValue;
+        if (styleId?.Value != null)
+        {
+            Debug.Print($"Element style: {styleId.Value}");
+        }
+
+        if (element is Paragraph paragraph && paragraph.ParagraphProperties?.ParagraphStyleId?.Val != null)
+        {
+            Debug.Print($"Paragraph style: {paragraph.ParagraphProperties.ParagraphStyleId.Val.Value}");
+        }
+
+        if (element is Run run && run.RunProperties?.RunStyle?.Val != null)
+        {
+            Debug.Print($"Run style: {run.RunProperties.RunStyle.Val.Value}");
+        }
+
+        foreach (var descendant in element.Descendants())
+        {
+            if (descendant is Paragraph p && p.ParagraphProperties?.ParagraphStyleId?.Val != null)
+            {
+                Debug.Print($"Descendant paragraph style: {p.ParagraphProperties.ParagraphStyleId.Val.Value}");
+            }
+            if (descendant is Run r && r.RunProperties?.RunStyle?.Val != null)
+            {
+                Debug.Print($"Descendant run style: {r.RunProperties.RunStyle.Val.Value}");
+            }
+        }
+    }
+
+    public Dictionary<string, string> MergeDocumentStyles(WordprocessingDocument target, WordprocessingDocument source)
+    {
+        var mapping = new Dictionary<string, string>();
+        var targetStylesPart = target.MainDocumentPart?.StyleDefinitionsPart;
+        var targetStylesWithEffectsPart = target.MainDocumentPart?.StylesWithEffectsPart;
+        var sourceStylesPart = source.MainDocumentPart?.StyleDefinitionsPart;
+        var sourceStylesWithEffectsPart = source.MainDocumentPart?.StylesWithEffectsPart;
+
+        // Collect all existing style IDs in target document
+        var existingStyleIds = new HashSet<string>();
+
+        if (targetStylesPart?.Styles != null)
+        {
+            foreach (var style in targetStylesPart.Styles.Elements<Style>())
+            {
+                if (style.StyleId?.Value != null)
+                {
+                    existingStyleIds.Add(style.StyleId.Value);
+                }
+            }
+        }
+
+        if (targetStylesWithEffectsPart?.Styles != null)
+        {
+            foreach (var style in targetStylesWithEffectsPart.Styles.Elements<Style>())
+            {
+                if (style.StyleId?.Value != null)
+                {
+                    existingStyleIds.Add(style.StyleId.Value);
+                }
+            }
+        }
+
+        // Ensure target has StyleDefinitionsPart
+        if (targetStylesPart == null)
+        {
+            targetStylesPart = target.MainDocumentPart!.AddNewPart<StyleDefinitionsPart>();
+            targetStylesPart.Styles = new Styles();
+        }
+        if (targetStylesWithEffectsPart == null)
+        {
+            targetStylesWithEffectsPart = target.MainDocumentPart!.AddNewPart<StylesWithEffectsPart>();
+            targetStylesWithEffectsPart.Styles = new Styles();
+        }
+
+        // Copy styles from source Styles that don't exist in target
+        if (sourceStylesPart?.Styles != null)
+        {
+            foreach (var style in sourceStylesPart.Styles.Elements<Style>())
+            {
+                if (style.StyleId?.Value != null)
+                {
+                    var clonedStyle = (Style)style.CloneNode(true);
+                    if (existingStyleIds.Contains(style.StyleId.Value))
+                    {
+                        var oldId = style.StyleId.Value;
+                        var newId = oldId + "src";
+                        clonedStyle?.StyleId?.Value = newId;
+                        Debug.WriteLine($"Mapping style {oldId} to {newId}");
+                        mapping[oldId] = newId;
+                    }
+                    targetStylesPart?.Styles?.Append(clonedStyle);
+                    existingStyleIds.Add(clonedStyle?.StyleId?.Value ?? "");
+                }
+            }
+        }
+
+        // Copy styles from source StylesWithEffects that don't exist in target
+        if (sourceStylesWithEffectsPart?.Styles != null)
+        {
+            foreach (var style in sourceStylesWithEffectsPart.Styles.Elements<Style>())
+            {
+                if (style.StyleId?.Value != null)
+                {
+                    var clonedStyle = (Style)style.CloneNode(true);
+                    if (existingStyleIds.Contains(style.StyleId.Value))
+                    {
+                        var oldId = style.StyleId.Value;
+                        var newId = oldId + "src";
+                        clonedStyle?.StyleId?.Value = newId;
+                        Debug.WriteLine($"Mapping style {oldId} to {newId}");
+                        mapping[oldId] = newId;
+                    }
+                    targetStylesWithEffectsPart?.Styles?.Append(clonedStyle);
+                    existingStyleIds.Add(style.StyleId.Value);
+                }
+            }
+        }
+        return mapping;
+    }
+
+    public void ListStyles(WordprocessingDocument document)
+    {
+        var stylesPart = document.MainDocumentPart?.StyleDefinitionsPart;
+        var stylesWithEffectsPart = document.MainDocumentPart?.StylesWithEffectsPart;
+        if (stylesPart?.Styles == null && stylesWithEffectsPart?.Styles == null)
+        {
+            Debug.Print("No styles found in document");
+            return;
+        }
+
+        if (stylesPart?.Styles != null)
+        {
+            foreach (var style in stylesPart.Styles.Elements<Style>())
+            {
+                var styleId = style.StyleId?.Value ?? "N/A";
+                var styleName = style.StyleName?.Val?.Value ?? "N/A";
+                Debug.Print($"Style ID: {styleId}, Name: {styleName}");
+            }
+        }
+        if (stylesWithEffectsPart?.Styles != null)
+        {
+            foreach (var style in stylesWithEffectsPart.Styles.Elements<Style>())
+            {
+                var styleId = style.StyleId?.Value ?? "N/A";
+                var styleName = style.StyleName?.Val?.Value ?? "N/A";
+                Debug.Print($"Style ID: {styleId}, Name: {styleName}");
+            }
+        }
+    }
+
+
+
+
+    private Dictionary<int, int> MergeNumberingDefinitions(WordprocessingDocument target, WordprocessingDocument source)
+    {
+        var mapping = new Dictionary<int, int>();
+        var abstractNumberingMapping = new Dictionary<int, int>();
+
+        var sourceNumbering = source.MainDocumentPart?.NumberingDefinitionsPart;
+        if (sourceNumbering?.Numbering == null)
+            return mapping;
+
+        var targetNumbering = target.MainDocumentPart?.NumberingDefinitionsPart;
+        if (targetNumbering == null)
+        {
+            targetNumbering = target.MainDocumentPart!.AddNewPart<NumberingDefinitionsPart>();
+            targetNumbering.Numbering = new Numbering();
+        }
+
+        var usedAbstractIds = new HashSet<int>();
+        foreach (var abstractNumbering in targetNumbering.Numbering.Elements<AbstractNum>())
+        {
+            if (abstractNumbering.AbstractNumberId?.Value != null)
+                usedAbstractIds.Add(abstractNumbering.AbstractNumberId.Value);
+        }
+
+        var usedIds = new HashSet<int>();
+        foreach (var numbering in targetNumbering.Numbering.Elements<NumberingInstance>())
+        {
+            if (numbering.NumberID?.Value != null)
+                usedIds.Add(numbering.NumberID.Value);
+        }
+
+        int nextAbstractId = usedAbstractIds.Any() ? usedAbstractIds.Max() + 1 : 0;
+        int nextNumId = usedIds.Any() ? usedIds.Max() + 1 : 1;
+
+
+        foreach (var sourceAbstractNumberingInstance in sourceNumbering.Numbering.Elements<AbstractNum>())
+        {
+            if (sourceAbstractNumberingInstance.AbstractNumberId?.Value != null)
+            {
+                int oldAbstractId = sourceAbstractNumberingInstance.AbstractNumberId.Value;
+                int newAbstractId = nextAbstractId++;
+
+                var cloned = (AbstractNum)sourceAbstractNumberingInstance.CloneNode(true);
+                cloned.AbstractNumberId = newAbstractId;
+                targetNumbering.Numbering.Append(cloned);
+
+                abstractNumberingMapping[oldAbstractId] = newAbstractId;
+            }
+        }
+
+        foreach (var sourceNumberingInstance in sourceNumbering.Numbering.Elements<NumberingInstance>())
+        {
+            if (sourceNumberingInstance.NumberID?.Value != null)
+            {
+                int oldId = sourceNumberingInstance.NumberID.Value;
+                int newNumId = nextNumId++;
+
+                var cloned = (NumberingInstance)sourceNumberingInstance.CloneNode(true);
+                cloned.NumberID = newNumId;
+
+                var abstractRef = cloned.GetFirstChild<AbstractNumId>();
+                if (abstractRef?.Val?.Value != null && abstractNumberingMapping.ContainsKey(abstractRef.Val.Value))
+                {
+                    abstractRef.Val = abstractNumberingMapping[abstractRef.Val.Value];
+                }
+
+                targetNumbering.Numbering.Append(cloned);
+                mapping[oldId] = newNumId;
+            }
+        }
+
+        return mapping;
+    }
+
+    private void UpdateParagraphNumbering(OpenXmlElement element, Dictionary<int, int> mapping)
+    {
+        foreach (var paragraph in element.Descendants<Paragraph>())
+        {
+            var property = paragraph.ParagraphProperties?.NumberingProperties;
+            if (property?.NumberingId?.Val?.Value != null)
+            {
+                int oldId = property.NumberingId.Val.Value;
+                if (mapping.ContainsKey(oldId))
+                {
+                    property.NumberingId.Val = mapping[oldId];
+                }
+            }
+        }
+    }
+
+
     public async Task ProcessTemplate(Context context, string inputTemplatePath, string outputDocumentPath)
     {
         File.Copy(inputTemplatePath, outputDocumentPath, true);
 
         using (var document = WordprocessingDocument.Open(outputDocumentPath, true))
         {
+            Debug.Print("Target document styles:");
+            ListStyles(document);
             var hooks = FindHooks(document, "template");
 
             foreach (var paragraph in hooks)
             {
-                await ProcessParagraph(context, paragraph);
+                await ProcessParagraph(context, document, paragraph);
             }
 
             document.Save();
