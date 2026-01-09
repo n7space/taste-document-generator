@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Tmds.DBus.Protocol;
 
 class DocumentAssembler
 {
@@ -76,9 +77,8 @@ class DocumentAssembler
         {
             Debug.Print("Source document styles:");
             ListStyles(sourceDocument);
-            var styleIdMapping = MergeDocumentStyles(targetDocument, sourceDocument);
             var numberingIdMapping = MergeNumberingDefinitions(targetDocument, sourceDocument);
-            UpdateStyleNumbering(targetDocument, numberIdMapping);
+            var styleIdMapping = MergeDocumentStyles(targetDocument, sourceDocument, numberingIdMapping);
             var sourceBody = sourceDocument.MainDocumentPart?.Document.Body;
             if (sourceBody != null)
             {
@@ -86,10 +86,57 @@ class DocumentAssembler
                 {
                     var clonedElement = element.CloneNode(true);
                     UpdateParagraphNumbering(clonedElement, numberingIdMapping);
+                    UpdateParagraphStyle(clonedElement, styleIdMapping);
                     GetStyle(clonedElement);
                     Debug.Print($"Cloning element {clonedElement.ToString()}");
                     parent.InsertAfter(clonedElement, insertionPoint);
                     insertionPoint = clonedElement;
+                }
+            }
+        }
+    }
+
+    private void UpdateParagraphStyle(OpenXmlElement element, Dictionary<string, string> styleIdMapping)
+    {
+        if (element is Paragraph paragraph)
+        {
+            var styleId = paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
+            if (styleId != null && styleIdMapping.ContainsKey(styleId))
+            {
+                Debug.WriteLine($"Updating element style from {styleId} to {styleIdMapping[styleId]}");
+                paragraph.ParagraphProperties!.ParagraphStyleId!.Val = styleIdMapping[styleId];
+            }
+        }
+
+        if (element is Run run)
+        {
+            var styleId = run.RunProperties?.RunStyle?.Val?.Value;
+            if (styleId != null && styleIdMapping.ContainsKey(styleId))
+            {
+                Debug.WriteLine($"Updating element style from {styleId} to {styleIdMapping[styleId]}");
+                run.RunProperties!.RunStyle!.Val = styleIdMapping[styleId];
+            }
+        }
+
+        foreach (var descendant in element.Descendants())
+        {
+            if (descendant is Paragraph p)
+            {
+                var styleId = p.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
+                if (styleId != null && styleIdMapping.ContainsKey(styleId))
+                {
+                    Debug.WriteLine($"Updating element style from {styleId} to {styleIdMapping[styleId]}");
+                    p.ParagraphProperties!.ParagraphStyleId!.Val = styleIdMapping[styleId];
+                }
+            }
+
+            if (descendant is Run r)
+            {
+                var styleId = r.RunProperties?.RunStyle?.Val?.Value;
+                if (styleId != null && styleIdMapping.ContainsKey(styleId))
+                {
+                    Debug.WriteLine($"Updating element style from {styleId} to {styleIdMapping[styleId]}");
+                    r.RunProperties!.RunStyle!.Val = styleIdMapping[styleId];
                 }
             }
         }
@@ -195,7 +242,7 @@ class DocumentAssembler
         }
     }
 
-    public Dictionary<string, string> MergeDocumentStyles(WordprocessingDocument target, WordprocessingDocument source)
+    public Dictionary<string, string> MergeDocumentStyles(WordprocessingDocument target, WordprocessingDocument source, Dictionary<int, int> numberingIdMapping)
     {
         var mapping = new Dictionary<string, string>();
         var targetStylesPart = target.MainDocumentPart?.StyleDefinitionsPart;
@@ -256,6 +303,12 @@ class DocumentAssembler
                         Debug.WriteLine($"Mapping style {oldId} to {newId}");
                         mapping[oldId] = newId;
                     }
+                    var numberingId = style.StyleParagraphProperties?.NumberingProperties?.NumberingId?.Val;
+                    if (numberingId != null && numberingIdMapping.ContainsKey(numberingId))
+                    {
+                        Debug.WriteLine($"Updating style {clonedStyle!.StyleId!.Value} numbering from {numberingId} to {numberingIdMapping[numberingId]}");
+                        clonedStyle!.StyleParagraphProperties!.NumberingProperties!.NumberingId!.Val = numberingIdMapping[numberingId];
+                    }
                     targetStylesPart?.Styles?.Append(clonedStyle);
                     existingStyleIds.Add(clonedStyle?.StyleId?.Value ?? "");
                 }
@@ -277,6 +330,13 @@ class DocumentAssembler
                         clonedStyle?.StyleId?.Value = newId;
                         Debug.WriteLine($"Mapping style {oldId} to {newId}");
                         mapping[oldId] = newId;
+                    }
+                    var numberingId = style.StyleParagraphProperties?.NumberingProperties?.NumberingId?.Val;
+                    if (numberingId != null && numberingIdMapping.ContainsKey(numberingId))
+                    {
+
+                        Debug.WriteLine($"Updating style {clonedStyle!.StyleId!.Value} numbering from {numberingId} to {numberingIdMapping[numberingId]}");
+                        clonedStyle!.StyleParagraphProperties!.NumberingProperties!.NumberingId!.Val = numberingIdMapping[numberingId];
                     }
                     targetStylesWithEffectsPart?.Styles?.Append(clonedStyle);
                     existingStyleIds.Add(style.StyleId.Value);
