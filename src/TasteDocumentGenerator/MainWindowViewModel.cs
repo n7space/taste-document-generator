@@ -17,7 +17,7 @@ namespace TasteDocumentGenerator;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    private class Settings
+    public class Settings
     {
         public string InputInterfaceViewPath { get; set; } = "interfaceview.xml";
         public string InputDeploymentViewPath { get; set; } = "deploymentview.dv.xml";
@@ -31,6 +31,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     private static string GetSettingsFilePath()
     {
+        var env = Environment.GetEnvironmentVariable("TDG_SETTINGS_PATH");
+        if (!string.IsNullOrEmpty(env))
+            return env!;
         return "taste-document-generator-settings.xml";
     }
 
@@ -85,9 +88,10 @@ public partial class MainWindowViewModel : ObservableObject
             using var stream = File.Create(GetSettingsFilePath());
             serializer.Serialize(stream, settings);
         }
-        catch
+        catch (Exception e)
         {
-            // If saving fails, silently ignore
+            Console.Error.WriteLine($"Failed to save settings: {e}");
+
         }
     }
 

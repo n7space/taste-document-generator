@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Settings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <InputInterfaceViewPath>interfaceview.xml</InputInterfaceViewPath>
+  <InputDeploymentViewPath>deploymentview.dv.xml</InputDeploymentViewPath>
+  <InputOpus2ModelPath>opus2_model.xml</InputOpus2ModelPath>
+  <InputTemplatePath>sdd-template.docx</InputTemplatePath>
+  <OutputFilePath>sdd.docx</OutputFilePath>
+  <InputTemplateDirectoryPath />
+  <Target>ASW</Target>
+  <DoOpenDocument>false</DoOpenDocument>
+</Settings>
