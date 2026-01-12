@@ -136,7 +136,7 @@ class DocumentAssembler
         var processInfo = new ProcessStartInfo
         {
             FileName = "template-processor",
-            Arguments = $" --verbosity info --iv {context.InterfaceViewPath} --dv {context.DeploymentViewPath} -o {context.TemporaryDirectory} -t {templatePath} -p md2docx --value TARGET=ASW",
+            Arguments = $" --verbosity info --iv {context.InterfaceViewPath} --dv {context.DeploymentViewPath} -o {context.TemporaryDirectory} -t {templatePath} -p md2docx --value TARGET={context.Target}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -295,26 +295,10 @@ class DocumentAssembler
         if (sourceNumbering?.Numbering == null)
             return mapping;
 
-        var targetNumbering = target.MainDocumentPart?.NumberingDefinitionsPart;
-        if (targetNumbering == null)
-        {
-            targetNumbering = target.MainDocumentPart!.AddNewPart<NumberingDefinitionsPart>();
-            targetNumbering.Numbering = new Numbering();
-        }
+        var targetNumbering = EnsureNumberingDefinitionsPart(target);
 
-        var usedAbstractIds = new HashSet<int>();
-        foreach (var abstractNumbering in targetNumbering.Numbering.Elements<AbstractNum>())
-        {
-            if (abstractNumbering.AbstractNumberId?.Value != null)
-                usedAbstractIds.Add(abstractNumbering.AbstractNumberId.Value);
-        }
-
-        var usedIds = new HashSet<int>();
-        foreach (var numbering in targetNumbering.Numbering.Elements<NumberingInstance>())
-        {
-            if (numbering.NumberID?.Value != null)
-                usedIds.Add(numbering.NumberID.Value);
-        }
+        var usedAbstractIds = GetUsedAbstractIds(targetNumbering);
+        var usedIds = GetUsedNumberingIds(targetNumbering);
 
         int nextAbstractId = usedAbstractIds.Any() ? usedAbstractIds.Max() + 1 : 0;
         int nextNumId = usedIds.Any() ? usedIds.Max() + 1 : 1;
@@ -356,6 +340,49 @@ class DocumentAssembler
         }
 
         return mapping;
+    }
+
+    private NumberingDefinitionsPart EnsureNumberingDefinitionsPart(WordprocessingDocument target)
+    {
+        var part = target.MainDocumentPart?.NumberingDefinitionsPart;
+        if (part == null)
+        {
+            part = target.MainDocumentPart!.AddNewPart<NumberingDefinitionsPart>();
+            part.Numbering = new Numbering();
+        }
+        else if (part.Numbering == null)
+        {
+            part.Numbering = new Numbering();
+        }
+        return part!;
+    }
+
+    private HashSet<int> GetUsedAbstractIds(NumberingDefinitionsPart numberingPart)
+    {
+        var used = new HashSet<int>();
+        if (numberingPart?.Numbering == null)
+            return used;
+
+        foreach (var abstractNum in numberingPart.Numbering.Elements<AbstractNum>())
+        {
+            if (abstractNum.AbstractNumberId?.Value != null)
+                used.Add(abstractNum.AbstractNumberId.Value);
+        }
+        return used;
+    }
+
+    private HashSet<int> GetUsedNumberingIds(NumberingDefinitionsPart numberingPart)
+    {
+        var used = new HashSet<int>();
+        if (numberingPart?.Numbering == null)
+            return used;
+
+        foreach (var numInstance in numberingPart.Numbering.Elements<NumberingInstance>())
+        {
+            if (numInstance.NumberID?.Value != null)
+                used.Add(numInstance.NumberID.Value);
+        }
+        return used;
     }
 
     private void UpdateParagraphNumbering(OpenXmlElement element, Dictionary<int, int> mapping)
