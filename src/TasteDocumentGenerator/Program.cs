@@ -49,6 +49,11 @@ class Program
         Parser.Default.ParseArguments<GenerateOptions, GuiOptions>(args).WithParsed<GuiOptions>(o =>
         {
             Console.WriteLine("Launching GUI...");
+            if (!string.IsNullOrEmpty(o.OptionsPath))
+            {
+                // Provide the configuration path to the rest of the app via environment variable
+                Environment.SetEnvironmentVariable("TDG_SETTINGS_PATH", o.OptionsPath);
+            }
             BuildAvaloniaApp()
                 .StartWithClassicDesktopLifetime(args);
         }).WithParsed<GenerateOptions>(o =>
