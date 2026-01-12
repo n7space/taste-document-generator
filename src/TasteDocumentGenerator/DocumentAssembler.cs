@@ -12,7 +12,7 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Tmds.DBus.Protocol;
 
-class DocumentAssembler
+public class DocumentAssembler
 {
 
     public const string BEGIN = "<TDG:";
@@ -36,11 +36,11 @@ class DocumentAssembler
         }
     }
 
-    private string GetAllText(Paragraph paragraph) =>
+    protected string GetAllText(Paragraph paragraph) =>
         string.Concat(paragraph.Descendants<DocumentFormat.OpenXml.Wordprocessing.Text>().Select(t => t.Text)).Trim();
 
 
-    private string ExtractCommand(string text) => text.Substring(BEGIN.Length, text.Length - (BEGIN.Length + END.Length)).Trim();
+    protected string ExtractCommand(string text) => text.Substring(BEGIN.Length, text.Length - (BEGIN.Length + END.Length)).Trim();
 
     private List<DocumentFormat.OpenXml.Wordprocessing.Paragraph> FindHooks(WordprocessingDocument document, string prefix)
     {
@@ -342,7 +342,7 @@ class DocumentAssembler
         return mapping;
     }
 
-    private NumberingDefinitionsPart EnsureNumberingDefinitionsPart(WordprocessingDocument target)
+    protected NumberingDefinitionsPart EnsureNumberingDefinitionsPart(WordprocessingDocument target)
     {
         var part = target.MainDocumentPart?.NumberingDefinitionsPart;
         if (part == null)
@@ -357,7 +357,7 @@ class DocumentAssembler
         return part!;
     }
 
-    private HashSet<int> GetUsedAbstractIds(NumberingDefinitionsPart numberingPart)
+    protected HashSet<int> GetUsedAbstractIds(NumberingDefinitionsPart numberingPart)
     {
         var used = new HashSet<int>();
         if (numberingPart?.Numbering == null)
@@ -371,7 +371,7 @@ class DocumentAssembler
         return used;
     }
 
-    private HashSet<int> GetUsedNumberingIds(NumberingDefinitionsPart numberingPart)
+    protected HashSet<int> GetUsedNumberingIds(NumberingDefinitionsPart numberingPart)
     {
         var used = new HashSet<int>();
         if (numberingPart?.Numbering == null)
