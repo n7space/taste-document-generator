@@ -8,7 +8,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.IO;
-using System.Text.Json;
+using System.Xml.Serialization;
 using System.Linq;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
@@ -31,7 +31,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private static string GetSettingsFilePath()
     {
-        return "taste-document-generator-settings.json";
+        return "taste-document-generator-settings.xml";
     }
 
     private void LoadSettings()
@@ -41,18 +41,22 @@ public partial class MainWindowViewModel : ObservableObject
             var settingsPath = GetSettingsFilePath();
             if (File.Exists(settingsPath))
             {
-                var json = File.ReadAllText(settingsPath);
-                var settings = JsonSerializer.Deserialize<Settings>(json);
-                if (settings != null)
+                var serializer = new XmlSerializer(typeof(Settings));
+                using var stream = File.OpenRead(settingsPath);
+                if (stream.Length > 0)
                 {
-                    InputInterfaceViewPath = settings.InputInterfaceViewPath;
-                    InputDeploymentViewPath = settings.InputDeploymentViewPath;
-                    InputOpus2ModelPath = settings.InputOpus2ModelPath;
-                    InputTemplatePath = settings.InputTemplatePath;
-                    OutputFilePath = settings.OutputFilePath;
-                    Target = settings.Target;
-                    InputTemplateDirectoryPath = settings.InputTemplateDirectoryPath;
-                    DoOpenDocument = settings.DoOpenDocument;
+                    var settings = (Settings?)serializer.Deserialize(stream);
+                    if (settings != null)
+                    {
+                        InputInterfaceViewPath = settings.InputInterfaceViewPath;
+                        InputDeploymentViewPath = settings.InputDeploymentViewPath;
+                        InputOpus2ModelPath = settings.InputOpus2ModelPath;
+                        InputTemplatePath = settings.InputTemplatePath;
+                        OutputFilePath = settings.OutputFilePath;
+                        Target = settings.Target;
+                        InputTemplateDirectoryPath = settings.InputTemplateDirectoryPath;
+                        DoOpenDocument = settings.DoOpenDocument;
+                    }
                 }
             }
         }
@@ -77,8 +81,9 @@ public partial class MainWindowViewModel : ObservableObject
                 InputTemplateDirectoryPath = InputTemplateDirectoryPath,
                 DoOpenDocument = DoOpenDocument
             };
-            var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(GetSettingsFilePath(), json);
+            var serializer = new XmlSerializer(typeof(Settings));
+            using var stream = File.Create(GetSettingsFilePath());
+            serializer.Serialize(stream, settings);
         }
         catch
         {
