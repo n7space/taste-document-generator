@@ -357,7 +357,172 @@ public class DocumentAssemblerTests
                 var paragraphs = body.Elements<Paragraph>().ToList();
 
                 // Should have more than one paragraph now (original hook + inserted content)
-                Assert.True(paragraphs.Count >= 1, "Document should contain inserted content");
+                Assert.True(paragraphs.Count == 2, "Document should contain inserted content");
+            }
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void InsertDocumentIntoParagraph_WithNumberingAndStyles_MergesCorrectly()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var targetPath = Path.Combine(tempDir, "target.docx");
+            var sourcePath = Path.Combine(tempDir, "source.docx");
+
+            // Create target document with numbering and styles
+            using (var targetDoc = WordprocessingDocument.Create(targetPath, WordprocessingDocumentType.Document))
+            {
+                var mainPart = targetDoc.AddMainDocumentPart();
+                mainPart.Document = new Document(new Body());
+
+                // Add numbering part with abstract numbering and instance
+                var numberingPart = mainPart.AddNewPart<NumberingDefinitionsPart>();
+                numberingPart.Numbering = new Numbering();
+                var abstractNum = new AbstractNum() { AbstractNumberId = 0 };
+                abstractNum.Append(new MultiLevelType() { Val = MultiLevelValues.HybridMultilevel });
+                numberingPart.Numbering.Append(abstractNum);
+                numberingPart.Numbering.Append(new NumberingInstance(
+                    new AbstractNumId() { Val = 0 }
+                ) { NumberID = 1 });
+
+                // Add styles part with a custom style
+                var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
+                stylesPart.Styles = new Styles();
+                var customStyle = new Style()
+                {
+                    StyleId = "CustomStyle1",
+                    Type = StyleValues.Paragraph
+                };
+                customStyle.Append(new StyleName() { Val = "Custom Style 1" });
+                stylesPart.Styles.Append(customStyle);
+
+                // Add target content with a placeholder paragraph
+                var body = mainPart.Document.Body!;
+                var placeholderPara = new Paragraph(new Run(new Text("PLACEHOLDER")));
+                body.Append(placeholderPara);
+
+                // Add a paragraph with numbering
+                var numberedPara = new Paragraph();
+                numberedPara.ParagraphProperties = new ParagraphProperties(
+                    new NumberingProperties(
+                        new NumberingLevelReference() { Val = 0 },
+                        new NumberingId() { Val = 1 }
+                    )
+                );
+                numberedPara.Append(new Run(new Text("Target numbered item")));
+                body.Append(numberedPara);
+            }
+
+            // Create source document with different numbering and styles
+            using (var sourceDoc = WordprocessingDocument.Create(sourcePath, WordprocessingDocumentType.Document))
+            {
+                var mainPart = sourceDoc.AddMainDocumentPart();
+                mainPart.Document = new Document(new Body());
+
+                // Add numbering to source (will be remapped)
+                var numberingPart = mainPart.AddNewPart<NumberingDefinitionsPart>();
+                numberingPart.Numbering = new Numbering();
+                var abstractNum = new AbstractNum() { AbstractNumberId = 0 };
+                abstractNum.Append(new MultiLevelType() { Val = MultiLevelValues.HybridMultilevel });
+                numberingPart.Numbering.Append(abstractNum);
+                numberingPart.Numbering.Append(new NumberingInstance(
+                    new AbstractNumId() { Val = 0 }
+                ) { NumberID = 1 });
+
+                // Add styles to source
+                var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
+                stylesPart.Styles = new Styles();
+                var sourceStyle = new Style()
+                {
+                    StyleId = "SourceStyle1",
+                    Type = StyleValues.Paragraph
+                };
+                sourceStyle.Append(new StyleName() { Val = "Source Style 1" });
+                stylesPart.Styles.Append(sourceStyle);
+
+                // Add source content
+                var body = mainPart.Document.Body!;
+                
+                var simplePara = new Paragraph(new Run(new Text("Simple paragraph from source")));
+                body.Append(simplePara);
+
+                var styledPara = new Paragraph();
+                styledPara.ParagraphProperties = new ParagraphProperties(
+                    new ParagraphStyleId() { Val = "SourceStyle1" }
+                );
+                styledPara.Append(new Run(new Text("Styled paragraph from source")));
+                body.Append(styledPara);
+
+                var numberedPara = new Paragraph();
+                numberedPara.ParagraphProperties = new ParagraphProperties(
+                    new NumberingProperties(
+                        new NumberingLevelReference() { Val = 0 },
+                        new NumberingId() { Val = 1 }
+                    )
+                );
+                numberedPara.Append(new Run(new Text("Source numbered item")));
+                body.Append(numberedPara);
+            }
+
+            var assembler = new DocumentAssembler();
+
+            // Act - Insert source into target at placeholder
+            using (var targetDoc = WordprocessingDocument.Open(targetPath, true))
+            {
+                var body = targetDoc.MainDocumentPart!.Document!.Body!;
+                var placeholderPara = body.Elements<Paragraph>().First();
+                
+                assembler.InsertDocumentIntoParagraph(sourcePath, targetDoc, placeholderPara);
+                targetDoc.Save();
+            }
+
+            // Assert
+            using (var targetDoc = WordprocessingDocument.Open(targetPath, false))
+            {
+                var body = targetDoc.MainDocumentPart!.Document!.Body!;
+                var paragraphs = body.Elements<Paragraph>().ToList();
+
+                // Should have: empty placeholder + 3 source paragraphs + 1 target numbered = 5 total
+                Assert.True(paragraphs.Count >= 4, $"Expected at least 4 paragraphs, got {paragraphs.Count}");
+
+                // Check that numbering was merged
+                var numberingPart = targetDoc.MainDocumentPart!.NumberingDefinitionsPart;
+                Assert.NotNull(numberingPart);
+                
+                var abstractNums = numberingPart!.Numbering!.Elements<AbstractNum>().ToList();
+                var numberingInstances = numberingPart.Numbering!.Elements<NumberingInstance>().ToList();
+                
+                // Should have 2 abstract numberings (target + source)
+                Assert.Equal(2, abstractNums.Count);
+                // Should have 2 numbering instances (target + source)
+                Assert.Equal(2, numberingInstances.Count);
+
+                // Check that styles were merged
+                var stylesPart = targetDoc.MainDocumentPart!.StyleDefinitionsPart;
+                Assert.NotNull(stylesPart);
+                
+                var styles = stylesPart!.Styles!.Elements<Style>().ToList();
+                var styleIds = styles.Select(s => s.StyleId?.Value).Where(id => id != null).ToList();
+                
+                // Should contain both original and source styles
+                Assert.Contains("CustomStyle1", styleIds);
+                Assert.Contains("SourceStyle1", styleIds);
+
+                // Verify text content was inserted
+                var allText = string.Join(" ", paragraphs.Select(p => 
+                    string.Concat(p.Descendants<Text>().Select(t => t.Text))));
+                Assert.Contains("Simple paragraph from source", allText);
+                Assert.Contains("Styled paragraph from source", allText);
+                Assert.Contains("Source numbered item", allText);
             }
         }
         finally
