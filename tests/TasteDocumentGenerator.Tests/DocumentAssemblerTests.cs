@@ -393,7 +393,8 @@ public class DocumentAssemblerTests
                 numberingPart.Numbering.Append(abstractNum);
                 numberingPart.Numbering.Append(new NumberingInstance(
                     new AbstractNumId() { Val = 0 }
-                ) { NumberID = 1 });
+                )
+                { NumberID = 1 });
 
                 // Add styles part with a custom style
                 var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
@@ -437,7 +438,8 @@ public class DocumentAssemblerTests
                 numberingPart.Numbering.Append(abstractNum);
                 numberingPart.Numbering.Append(new NumberingInstance(
                     new AbstractNumId() { Val = 0 }
-                ) { NumberID = 1 });
+                )
+                { NumberID = 1 });
 
                 // Add styles to source
                 var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
@@ -452,7 +454,7 @@ public class DocumentAssemblerTests
 
                 // Add source content
                 var body = mainPart.Document.Body!;
-                
+
                 var simplePara = new Paragraph(new Run(new Text("Simple paragraph from source")));
                 body.Append(simplePara);
 
@@ -481,7 +483,7 @@ public class DocumentAssemblerTests
             {
                 var body = targetDoc.MainDocumentPart!.Document!.Body!;
                 var placeholderPara = body.Elements<Paragraph>().First();
-                
+
                 assembler.InsertDocumentIntoParagraph(sourcePath, targetDoc, placeholderPara);
                 targetDoc.Save();
             }
@@ -498,10 +500,10 @@ public class DocumentAssemblerTests
                 // Check that numbering was merged
                 var numberingPart = targetDoc.MainDocumentPart!.NumberingDefinitionsPart;
                 Assert.NotNull(numberingPart);
-                
+
                 var abstractNums = numberingPart!.Numbering!.Elements<AbstractNum>().ToList();
                 var numberingInstances = numberingPart.Numbering!.Elements<NumberingInstance>().ToList();
-                
+
                 // Should have 2 abstract numberings (target + source)
                 Assert.Equal(2, abstractNums.Count);
                 // Should have 2 numbering instances (target + source)
@@ -510,16 +512,16 @@ public class DocumentAssemblerTests
                 // Check that styles were merged
                 var stylesPart = targetDoc.MainDocumentPart!.StyleDefinitionsPart;
                 Assert.NotNull(stylesPart);
-                
+
                 var styles = stylesPart!.Styles!.Elements<Style>().ToList();
                 var styleIds = styles.Select(s => s.StyleId?.Value).Where(id => id != null).ToList();
-                
+
                 // Should contain both original and source styles
                 Assert.Contains("CustomStyle1", styleIds);
                 Assert.Contains("SourceStyle1", styleIds);
 
                 // Verify text content was inserted
-                var allText = string.Join(" ", paragraphs.Select(p => 
+                var allText = string.Join(" ", paragraphs.Select(p =>
                     string.Concat(p.Descendants<Text>().Select(t => t.Text))));
                 Assert.Contains("Simple paragraph from source", allText);
                 Assert.Contains("Styled paragraph from source", allText);
