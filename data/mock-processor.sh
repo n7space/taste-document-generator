@@ -1,7 +1,7 @@
 #!/bin/sh
 # Simple mock template processor that logs its arguments for tests
 BASEDIR="$(dirname "$0")"
-OUTFILE="$BASEDIR/mock-processors.output"
+OUTFILE="$BASEDIR/mock-processor.output"
 printf "%s %s\n" "$(date --iso-8601=seconds)" "$*" >> "$OUTFILE"
 
 # Extract -o and -t parameters
@@ -18,7 +18,8 @@ done
 
 if [ -n "$OUTDIR" ] && [ -n "$TFILE" ]; then
 	BASENAME=$(basename "$TFILE")
-	DESTPATH="$OUTDIR/$BASENAME"
+	BASENAME_NO_EXT=${BASENAME%.*}
+	DESTPATH="$OUTDIR/$BASENAME_NO_EXT.docx"
 	SRC="$BASEDIR/test_in_tmplt.docx"
 	if [ -f "$SRC" ]; then
 		mkdir -p "$OUTDIR"
