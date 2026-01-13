@@ -31,6 +31,8 @@ class Program
 
         [Option("template-directory", Required = false, HelpText = "Template directory path", Default = "")]
         public string TemplateDirectory { get; set; } = "";
+        [Option("template-processor", Required = false, HelpText = "Template processor binary to execute [to support testing]", Default = "template-processor")]
+        public string TemplateProcessor { get; set; } = "template-processor";
     }
 
     [Verb("gui", HelpText = "Launch GUI")]
@@ -84,7 +86,8 @@ class Program
                 options.DeploymentView,
                 options.Target,
                 options.TemplateDirectory,
-                tempDir);
+                tempDir,
+                options.TemplateProcessor);
 
             await da.ProcessTemplate(context, options.TemplatePath!, options.OutputPath!);
 

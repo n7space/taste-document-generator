@@ -25,14 +25,16 @@ public class DocumentAssembler
         public string InterfaceViewPath;
         public string DeploymentViewPath;
         public string TemporaryDirectory;
+        public string? TemplateProcessor;
 
-        public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory)
+        public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory, string? TemplateProcessor)
         {
             this.InterfaceViewPath = InterfaceViewPath;
             this.DeploymentViewPath = DeploymentViewPath;
             this.TemporaryDirectory = TemporaryDirectory;
             this.TemplateDirectory = TemplateDirectory;
             this.Target = Target;
+            this.TemplateProcessor = TemplateProcessor;
         }
     }
 
@@ -135,7 +137,7 @@ public class DocumentAssembler
         Debug.Print($"Processing template {command[1]}");
         var processInfo = new ProcessStartInfo
         {
-            FileName = "template-processor",
+            FileName = context.TemplateProcessor ?? "template-processor",
             Arguments = $" --verbosity info --iv {context.InterfaceViewPath} --dv {context.DeploymentViewPath} -o {context.TemporaryDirectory} -t {templatePath} -p md2docx --value TARGET={context.Target}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,

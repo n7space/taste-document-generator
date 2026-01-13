@@ -205,7 +205,7 @@ public partial class MainWindowViewModel : ObservableObject
         Directory.CreateDirectory(tempDir);
         try
         {
-            var context = new DocumentAssembler.Context(InputInterfaceViewPath, InputDeploymentViewPath, Target, InputTemplateDirectoryPath, tempDir);
+            var context = new DocumentAssembler.Context(InputInterfaceViewPath, InputDeploymentViewPath, Target, InputTemplateDirectoryPath, tempDir, null);
             await da.ProcessTemplate(context, InputTemplatePath, OutputFilePath);
             var messageBox = MessageBoxManager.GetMessageBoxStandard(
                 "Success",

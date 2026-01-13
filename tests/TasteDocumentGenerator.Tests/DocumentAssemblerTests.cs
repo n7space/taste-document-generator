@@ -65,7 +65,8 @@ public class DocumentAssemblerTests
             deploymentView,
             target,
             templateDir,
-            tempDir);
+            tempDir,
+            null);
 
         // Assert
         Assert.Equal(interfaceView, context.InterfaceViewPath);
@@ -301,7 +302,7 @@ public class DocumentAssemblerTests
             File.WriteAllText(dvPath, "<DeploymentView/>");
 
             var assembler = new DocumentAssembler();
-            var context = new DocumentAssembler.Context(ivPath, dvPath, "ASW", tempDir, tempDir);
+            var context = new DocumentAssembler.Context(ivPath, dvPath, "ASW", tempDir, tempDir, null);
 
             // Act
             await assembler.ProcessTemplate(context, templatePath, outputPath);
