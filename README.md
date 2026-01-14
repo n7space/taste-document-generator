@@ -20,7 +20,7 @@ make install          # install a shim under ~/.local/bin/TasteDocumentGenerator
 
 ## Configuration
 
-The GUI can load its inputs from an XML settings file. The default layout is available at [data/taste-document-generator-settings.xml](data/taste-document-generator-settings.xml) and contains:
+The GUI can load its inputs from an XML settings file. An example settings file is available at [data/taste-document-generator-settings.xml](data/taste-document-generator-settings.xml) and contains:
 
 - `<InputInterfaceViewPath>`: path to the Interface View (defaults to `interfaceview.xml`).
 - `<InputDeploymentViewPath>`: path to the Deployment View (defaults to `deploymentview.dv.xml`).

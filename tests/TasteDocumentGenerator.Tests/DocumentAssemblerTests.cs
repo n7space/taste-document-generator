@@ -6,22 +6,6 @@ namespace TasteDocumentGenerator.Tests;
 
 public class DocumentAssemblerTests
 {
-
-    private static string CreateTestTemplate(string filePath, string hookCommand)
-    {
-        using (var doc = WordprocessingDocument.Create(filePath, WordprocessingDocumentType.Document))
-        {
-            var mainPart = doc.AddMainDocumentPart();
-            mainPart.Document = new Document(new Body());
-
-            // Add a paragraph with hook text
-            var body = mainPart.Document.Body;
-            var para = new Paragraph(new Run(new Text($"<TDG: {hookCommand} />")));
-            body!.Append(para);
-        }
-        return filePath;
-    }
-
     private static string CreateMinimalDocx(string filePath, string? content = null)
     {
         using (var doc = WordprocessingDocument.Create(filePath, WordprocessingDocumentType.Document))

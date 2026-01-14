@@ -1,15 +1,12 @@
 using System;
 using System.Threading.Tasks;
-using System.Windows.Input;
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.IO;
 using System.Xml.Serialization;
-using System.Linq;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
 

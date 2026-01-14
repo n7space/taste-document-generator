@@ -1,7 +1,6 @@
 namespace TasteDocumentGenerator;
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -10,7 +9,6 @@ using System.Threading.Tasks;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using Tmds.DBus.Protocol;
 
 public class DocumentAssembler
 {
