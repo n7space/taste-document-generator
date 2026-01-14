@@ -10,7 +10,12 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 
-public class DocumentAssembler
+public interface IDocumentAssembler
+{
+    Task ProcessTemplate(DocumentAssembler.Context context, string inputTemplatePath, string outputDocumentPath);
+}
+
+public class DocumentAssembler : IDocumentAssembler
 {
 
     public const string BEGIN = "<TDG:";
@@ -24,8 +29,9 @@ public class DocumentAssembler
         public string DeploymentViewPath;
         public string TemporaryDirectory;
         public string? TemplateProcessor;
+        public IReadOnlyList<string> SystemObjectCsvFiles { get; }
 
-        public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory, string? TemplateProcessor)
+        public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory, string? TemplateProcessor, IEnumerable<string>? systemObjectCsvFiles = null)
         {
             this.InterfaceViewPath = InterfaceViewPath;
             this.DeploymentViewPath = DeploymentViewPath;
@@ -33,6 +39,7 @@ public class DocumentAssembler
             this.TemplateDirectory = TemplateDirectory;
             this.Target = Target;
             this.TemplateProcessor = TemplateProcessor;
+            SystemObjectCsvFiles = systemObjectCsvFiles?.Where(path => !string.IsNullOrWhiteSpace(path)).Select(path => path.Trim()).ToArray() ?? Array.Empty<string>();
         }
     }
 
@@ -136,12 +143,32 @@ public class DocumentAssembler
         var processInfo = new ProcessStartInfo
         {
             FileName = context.TemplateProcessor ?? "template-processor",
-            Arguments = $" --verbosity info --iv {context.InterfaceViewPath} --dv {context.DeploymentViewPath} -o {context.TemporaryDirectory} -t {templatePath} -p md2docx --value TARGET={context.Target}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = false
         };
+
+        processInfo.ArgumentList.Add("--verbosity");
+        processInfo.ArgumentList.Add("info");
+        processInfo.ArgumentList.Add("--iv");
+        processInfo.ArgumentList.Add(context.InterfaceViewPath);
+        processInfo.ArgumentList.Add("--dv");
+        processInfo.ArgumentList.Add(context.DeploymentViewPath);
+        processInfo.ArgumentList.Add("-o");
+        processInfo.ArgumentList.Add(context.TemporaryDirectory);
+        processInfo.ArgumentList.Add("-t");
+        processInfo.ArgumentList.Add(templatePath);
+        processInfo.ArgumentList.Add("-p");
+        processInfo.ArgumentList.Add("md2docx");
+        processInfo.ArgumentList.Add("--value");
+        processInfo.ArgumentList.Add($"TARGET={context.Target}");
+
+        foreach (var csvPath in context.SystemObjectCsvFiles)
+        {
+            processInfo.ArgumentList.Add("-s");
+            processInfo.ArgumentList.Add(csvPath);
+        }
 
         using var process = Process.Start(processInfo);
         if (process is null)

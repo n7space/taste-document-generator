@@ -42,6 +42,7 @@ public class DocumentAssemblerTests
         var target = "ASW";
         var templateDir = "/templates";
         var tempDir = "/temp";
+        var csvFiles = new[] { "memory.csv", "parameters.csv" };
 
         // Act
         var context = new DocumentAssembler.Context(
@@ -50,7 +51,8 @@ public class DocumentAssemblerTests
             target,
             templateDir,
             tempDir,
-            null);
+            null,
+            csvFiles);
 
         // Assert
         Assert.Equal(interfaceView, context.InterfaceViewPath);
@@ -58,6 +60,7 @@ public class DocumentAssemblerTests
         Assert.Equal(target, context.Target);
         Assert.Equal(templateDir, context.TemplateDirectory);
         Assert.Equal(tempDir, context.TemporaryDirectory);
+        Assert.Equal(csvFiles, context.SystemObjectCsvFiles);
     }
 
     [Fact]
@@ -286,7 +289,7 @@ public class DocumentAssemblerTests
             File.WriteAllText(dvPath, "<DeploymentView/>");
 
             var assembler = new DocumentAssembler();
-            var context = new DocumentAssembler.Context(ivPath, dvPath, "ASW", tempDir, tempDir, null);
+            var context = new DocumentAssembler.Context(ivPath, dvPath, "ASW", tempDir, tempDir, null, Array.Empty<string>());
 
             // Act
             await assembler.ProcessTemplate(context, templatePath, outputPath);

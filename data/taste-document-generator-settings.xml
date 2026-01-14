@@ -8,4 +8,5 @@
   <InputTemplateDirectoryPath />
   <Target>ASW</Target>
   <DoOpenDocument>false</DoOpenDocument>
+  <SystemObjectTypes>On-board memory, On-board parameter, File System, Event definition, Housekeeping parameter report structure</SystemObjectTypes>
 </Settings>

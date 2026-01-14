@@ -17,6 +17,9 @@ test:
 run: build
 	dotnet run --project "$(PROJECT)" -c $(CONFIG) -- gui
 
+debug: build
+	dotnet run --project "$(PROJECT)" -c Debug -- gui
+
 install: build
 	mkdir -p $(BIN_DIR)
 	printf '%s\n%s\n' '#!/bin/sh' 'exec dotnet "$(OUTPUT_DLL)" "$$@"' > $(SHIM)
