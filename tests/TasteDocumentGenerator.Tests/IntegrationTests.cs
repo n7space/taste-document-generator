@@ -62,7 +62,7 @@ public class IntegrationTests
         -OPUS2 Model is set to dummy.opus
         -Input file is data/test_in_empty.docx
         -Output file is output/empty.docx
-        -Template processor is set to data/mock-processory.sh 
+        -Template processor is set to data/mock-processor.sh 
         The produced output is the same as the input
         */
         var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
