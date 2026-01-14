@@ -1,4 +1,4 @@
-.PHONY: build test run install
+.PHONY: build test run install clean
 
 CONFIG ?= Release
 TARGET_FRAMEWORK ?= net10.0
@@ -21,3 +21,12 @@ install: build
 	mkdir -p $(BIN_DIR)
 	printf '%s\n%s\n' '#!/bin/sh' 'exec dotnet "$(OUTPUT_DLL)" "$$@"' > $(SHIM)
 	chmod +x $(SHIM)
+
+uninstall:
+	rm -f $(SHIM)
+
+clean:
+	rm -r -f $(abspath src/TasteDocumentGenerator/bin/)
+	rm -r -f $(abspath src/TasteDocumentGenerator/obj/)
+	rm -r -f $(abspath tests/TasteDocumentGenerator.Tests/bin/)
+	rm -r -f $(abspath tests/TasteDocumentGenerator.Tests/obj/)
