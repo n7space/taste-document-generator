@@ -13,17 +13,17 @@ using DocumentFormat.OpenXml.Wordprocessing;
 public class DocumentAssembler
 {
 
-    public const string BEGIN = "<TDG:";
-    public const string END = "/>";
+    protected const string BEGIN = "<TDG:";
+    protected const string END = "/>";
 
     public class Context
     {
-        public string Target;
-        public string TemplateDirectory;
-        public string InterfaceViewPath;
-        public string DeploymentViewPath;
-        public string TemporaryDirectory;
-        public string? TemplateProcessor;
+        public readonly string Target;
+        public readonly string TemplateDirectory;
+        public readonly string InterfaceViewPath;
+        public readonly string DeploymentViewPath;
+        public readonly string TemporaryDirectory;
+        public readonly string? TemplateProcessor;
 
         public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory, string? TemplateProcessor)
         {
@@ -78,16 +78,18 @@ public class DocumentAssembler
             var numberingIdMapping = MergeNumberingDefinitions(targetDocument, sourceDocument);
             var styleIdMapping = MergeDocumentStyles(targetDocument, sourceDocument, numberingIdMapping);
             var sourceBody = sourceDocument.MainDocumentPart?.Document.Body;
-            if (sourceBody != null)
+            if (sourceBody is null)
             {
-                foreach (var element in sourceBody.Elements())
-                {
-                    var clonedElement = element.CloneNode(true);
-                    UpdateParagraphNumbering(clonedElement, numberingIdMapping);
-                    UpdateParagraphStyle(clonedElement, styleIdMapping);
-                    parent.InsertAfter(clonedElement, insertionPoint);
-                    insertionPoint = clonedElement;
-                }
+                Debug.WriteLine($"Body is null in target document, insertion skipped");
+                return;
+            }
+            foreach (var element in sourceBody.Elements())
+            {
+                var clonedElement = element.CloneNode(true);
+                UpdateParagraphNumbering(clonedElement, numberingIdMapping);
+                UpdateParagraphStyle(clonedElement, styleIdMapping);
+                parent.InsertAfter(clonedElement, insertionPoint);
+                insertionPoint = clonedElement;
             }
         }
     }
