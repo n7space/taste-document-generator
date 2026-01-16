@@ -225,7 +225,7 @@ public partial class MainWindowViewModel : ObservableObject
                 TemplateDirectory = InputTemplateDirectoryPath,
                 SystemObjectTypes = ParseSystemObjectTypes(SystemObjectTypesText),
                 Tag = TemplateTag
-            }; ;
+            };
 
             await orchestrator.GenerateAsync(parameters);
             var messageBox = MessageBoxManager.GetMessageBoxStandard(
