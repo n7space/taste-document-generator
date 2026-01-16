@@ -11,6 +11,9 @@ OUTPUT_DLL := $(abspath src/TasteDocumentGenerator/bin/$(CONFIG)/$(TARGET_FRAMEW
 build:
 	dotnet build "$(PROJECT)" -c $(CONFIG)
 
+format:
+	dotnet format
+
 test:
 	dotnet test "$(TEST_PROJECT)" -c $(CONFIG) -l:"console;verbosity=normal"
 
