@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using DynamicData.Kernel;
 
 public interface IDocumentAssembler
 {
@@ -159,7 +160,7 @@ public class DocumentAssembler : IDocumentAssembler
         processInfo.ArgumentList.Add("-o");
         processInfo.ArgumentList.Add(context.TemporaryDirectory);
         processInfo.ArgumentList.Add("-t");
-        processInfo.ArgumentList.Add(templatePath);
+        processInfo.ArgumentList.Add(Path.Join(context.TemplateDirectory, templatePath));
         processInfo.ArgumentList.Add("-p");
         processInfo.ArgumentList.Add("md2docx");
         processInfo.ArgumentList.Add("--value");
@@ -170,6 +171,9 @@ public class DocumentAssembler : IDocumentAssembler
             processInfo.ArgumentList.Add("-s");
             processInfo.ArgumentList.Add(csvPath);
         }
+
+        var invocationArguments = string.Join(" ", processInfo.ArgumentList);
+        Debug.WriteLine($"Calling {processInfo.FileName} with arguments {invocationArguments}");
 
         using var process = Process.Start(processInfo);
         if (process is null)
