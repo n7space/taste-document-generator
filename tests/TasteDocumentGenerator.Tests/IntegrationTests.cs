@@ -89,18 +89,18 @@ public class IntegrationTests
             var mockProcessor = Path.Combine(repoRoot, "data", "mock-processor.sh");
             Assert.True(File.Exists(mockProcessor), $"Mock processor not found: {mockProcessor}");
 
-                var mockExporter = Path.Combine(repoRoot, "data", "mock-exporter.sh");
-                Assert.True(File.Exists(mockExporter), $"Mock exporter not found: {mockExporter}");
-                var exporterLog = Path.Combine(repoRoot, "data", "mock-exporter.output");
-                if (File.Exists(exporterLog))
-                {
-                    File.Delete(exporterLog);
-                }
+            var mockExporter = Path.Combine(repoRoot, "data", "mock-exporter.sh");
+            Assert.True(File.Exists(mockExporter), $"Mock exporter not found: {mockExporter}");
+            var exporterLog = Path.Combine(repoRoot, "data", "mock-exporter.output");
+            if (File.Exists(exporterLog))
+            {
+                File.Delete(exporterLog);
+            }
 
             var psi = new ProcessStartInfo
             {
                 FileName = "dotnet",
-                    Arguments = $"run --project \"src/TasteDocumentGenerator/TasteDocumentGenerator.csproj\" -- generate -t \"{templatePath}\" -i \"{ivPath}\" -d \"{dvPath}\" -p \"{opusPath}\" -o \"{outputPath}\" --target CubeSat --template-processor \"{mockProcessor}\" --system-object-exporter \"{mockExporter}\"",
+                Arguments = $"run --project \"src/TasteDocumentGenerator/TasteDocumentGenerator.csproj\" -- generate -t \"{templatePath}\" -i \"{ivPath}\" -d \"{dvPath}\" -p \"{opusPath}\" -o \"{outputPath}\" --target CubeSat --template-processor \"{mockProcessor}\" --system-object-exporter \"{mockExporter}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
