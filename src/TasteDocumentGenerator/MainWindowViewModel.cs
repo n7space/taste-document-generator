@@ -26,6 +26,7 @@ public partial class MainWindowViewModel : ObservableObject
         public string Target { get; set; } = "ASW";
         public bool DoOpenDocument { get; set; } = false;
         public string SystemObjectTypes { get; set; } = string.Join(", ", Orchestrator.DefaultSystemObjectTypes);
+        public string Tag { get; set; } = "TDG:";
     }
 
     private static string GetSettingsFilePath()
@@ -61,6 +62,7 @@ public partial class MainWindowViewModel : ObservableObject
                         SystemObjectTypesText = string.IsNullOrWhiteSpace(settings.SystemObjectTypes)
                             ? string.Join(", ", Orchestrator.DefaultSystemObjectTypes)
                             : settings.SystemObjectTypes;
+                        TemplateTag = string.IsNullOrWhiteSpace(settings.Tag) ? "TDG:" : settings.Tag;
                     }
                 }
             }
@@ -85,7 +87,8 @@ public partial class MainWindowViewModel : ObservableObject
                 Target = Target,
                 InputTemplateDirectoryPath = InputTemplateDirectoryPath,
                 DoOpenDocument = DoOpenDocument,
-                SystemObjectTypes = SystemObjectTypesText
+                SystemObjectTypes = SystemObjectTypesText,
+                Tag = TemplateTag
             };
             var serializer = new XmlSerializer(typeof(Settings));
             using var stream = File.Create(GetSettingsFilePath());
@@ -130,6 +133,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _systemObjectTypesText = string.Join(", ", Orchestrator.DefaultSystemObjectTypes);
+
+    [ObservableProperty]
+    private string _templateTag = "TDG:";
 
     private IStorageProvider GetStorageProvider()
     {
@@ -217,8 +223,9 @@ public partial class MainWindowViewModel : ObservableObject
                 OutputPath = OutputFilePath,
                 Target = Target,
                 TemplateDirectory = InputTemplateDirectoryPath,
-                SystemObjectTypes = ParseSystemObjectTypes(SystemObjectTypesText)
-            };
+                SystemObjectTypes = ParseSystemObjectTypes(SystemObjectTypesText),
+                Tag = TemplateTag
+            };;
 
             await orchestrator.GenerateAsync(parameters);
             var messageBox = MessageBoxManager.GetMessageBoxStandard(

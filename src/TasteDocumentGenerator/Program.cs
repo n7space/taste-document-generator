@@ -41,6 +41,9 @@ class Program
 
         [Option("system-object-type", Required = false, HelpText = "System Object Type names (comma separated)", Separator = ',')]
         public IEnumerable<string>? SystemObjectTypes { get; set; }
+
+        [Option("tag", Required = false, HelpText = "Tag for template hooks (e.g., 'TDG:')", Default = "TDG:")]
+        public string Tag { get; set; } = "TDG:";
     }
 
     [Verb("gui", HelpText = "Launch GUI")]
@@ -95,7 +98,8 @@ class Program
             TemplateDirectory = options.TemplateDirectory,
             TemplateProcessorBinary = options.TemplateProcessor,
             SystemObjectExporterBinary = options.SystemObjectExporter,
-            SystemObjectTypes = options.SystemObjectTypes
+            SystemObjectTypes = options.SystemObjectTypes,
+            Tag = options.Tag
         };
 
         await orchestrator.GenerateAsync(parameters);

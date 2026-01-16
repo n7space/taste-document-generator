@@ -52,6 +52,7 @@ public class DocumentAssemblerTests
             templateDir,
             tempDir,
             null,
+            null,
             csvFiles);
 
         // Assert
@@ -235,7 +236,7 @@ public class DocumentAssemblerTests
         var assembler = new TestableDocumentAssembler();
 
         // Act
-        var result = assembler.CallExtractCommand(input);
+        var result = assembler.CallExtractCommand(input, "<TDG:", "/>");
 
         // Assert
         Assert.Equal(expected, result);
@@ -289,7 +290,7 @@ public class DocumentAssemblerTests
             File.WriteAllText(dvPath, "<DeploymentView/>");
 
             var assembler = new DocumentAssembler();
-            var context = new DocumentAssembler.Context(ivPath, dvPath, "ASW", tempDir, tempDir, null, Array.Empty<string>());
+            var context = new DocumentAssembler.Context(ivPath, dvPath, "ASW", tempDir, tempDir, null, null, Array.Empty<string>());
 
             // Act
             await assembler.ProcessTemplate(context, templatePath, outputPath);
@@ -541,9 +542,9 @@ public class TestableDocumentAssembler : DocumentAssembler
         return GetUsedNumberingIds(part);
     }
 
-    public string CallExtractCommand(string text)
+    public string CallExtractCommand(string text, string begin, string end)
     {
-        return ExtractCommand(text);
+        return ExtractCommand(text, begin, end);
     }
 
     public string CallGetAllText(Paragraph paragraph)

@@ -17,9 +17,8 @@ public interface IDocumentAssembler
 
 public class DocumentAssembler : IDocumentAssembler
 {
-
-    public const string BEGIN = "<TDG:";
-    public const string END = "/>";
+    public readonly string MARKER_OPEN = "<";
+    public readonly string MARKER_CLOSE = "/>";
 
     public class Context
     {
@@ -29,9 +28,10 @@ public class DocumentAssembler : IDocumentAssembler
         public string DeploymentViewPath;
         public string TemporaryDirectory;
         public string? TemplateProcessor;
+        public string Tag;
         public IReadOnlyList<string> SystemObjectCsvFiles { get; }
 
-        public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory, string? TemplateProcessor, IEnumerable<string>? systemObjectCsvFiles = null)
+        public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory, string? TemplateProcessor, string? Tag = null, IEnumerable<string>? systemObjectCsvFiles = null)
         {
             this.InterfaceViewPath = InterfaceViewPath;
             this.DeploymentViewPath = DeploymentViewPath;
@@ -39,6 +39,7 @@ public class DocumentAssembler : IDocumentAssembler
             this.TemplateDirectory = TemplateDirectory;
             this.Target = Target;
             this.TemplateProcessor = TemplateProcessor;
+            this.Tag = Tag ?? "TDG:";
             SystemObjectCsvFiles = systemObjectCsvFiles?.Where(path => !string.IsNullOrWhiteSpace(path)).Select(path => path.Trim()).ToArray() ?? Array.Empty<string>();
         }
     }
@@ -47,9 +48,9 @@ public class DocumentAssembler : IDocumentAssembler
         string.Concat(paragraph.Descendants<DocumentFormat.OpenXml.Wordprocessing.Text>().Select(t => t.Text)).Trim();
 
 
-    protected string ExtractCommand(string text) => text.Substring(BEGIN.Length, text.Length - (BEGIN.Length + END.Length)).Trim();
+    protected string ExtractCommand(string text, string begin, string end) => text.Substring(begin.Length, text.Length - (begin.Length + end.Length)).Trim();
 
-    private List<DocumentFormat.OpenXml.Wordprocessing.Paragraph> FindHooks(WordprocessingDocument document, string prefix)
+    private List<DocumentFormat.OpenXml.Wordprocessing.Paragraph> FindHooks(WordprocessingDocument document, string prefix, string begin, string end)
     {
         var hooks = new List<DocumentFormat.OpenXml.Wordprocessing.Paragraph>();
         var body = document.MainDocumentPart?.Document.Body;
@@ -61,9 +62,9 @@ public class DocumentAssembler : IDocumentAssembler
         foreach (var paragraph in body.Descendants<DocumentFormat.OpenXml.Wordprocessing.Paragraph>())
         {
             var text = GetAllText(paragraph);
-            if (text.StartsWith(BEGIN) && text.EndsWith(END))
+            if (text.StartsWith(begin) && text.EndsWith(end))
             {
-                var content = ExtractCommand(text);
+                var content = ExtractCommand(text, begin, end);
                 if (content.StartsWith(prefix))
                 {
                     hooks.Add(paragraph);
@@ -197,8 +198,10 @@ public class DocumentAssembler : IDocumentAssembler
 
     public async Task ProcessParagraph(Context context, WordprocessingDocument targetDocument, Paragraph paragraph)
     {
+        var begin = MARKER_OPEN + context.Tag;
+        var end = MARKER_CLOSE;
         var text = GetAllText(paragraph);
-        var command = ExtractCommand(text).Split(" ");
+        var command = ExtractCommand(text, begin, end).Split(" ");
         if (command.Length == 0)
         {
             return;
@@ -431,10 +434,12 @@ public class DocumentAssembler : IDocumentAssembler
 
     public async Task ProcessTemplate(Context context, string inputTemplatePath, string outputDocumentPath)
     {
+        var begin = MARKER_OPEN + context.Tag;
+        var end = MARKER_CLOSE;
         File.Copy(inputTemplatePath, outputDocumentPath, true);
         using (var document = WordprocessingDocument.Open(outputDocumentPath, true))
         {
-            var hooks = FindHooks(document, "template");
+            var hooks = FindHooks(document, "template", begin, end);
             foreach (var paragraph in hooks)
             {
                 await ProcessParagraph(context, document, paragraph);

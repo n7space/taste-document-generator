@@ -43,6 +43,7 @@ public sealed class Orchestrator
         public string? TemplateProcessorBinary { get; init; }
         public string? SystemObjectExporterBinary { get; init; }
         public IEnumerable<string>? SystemObjectTypes { get; init; }
+        public string Tag { get; init; } = "TDG:";
     }
 
     public async Task GenerateAsync(Parameters parameters, CancellationToken cancellationToken = default)
@@ -85,6 +86,7 @@ public sealed class Orchestrator
                 templateDirectory,
                 assemblerTempDirectory,
                 templateProcessorBinary,
+                parameters.Tag,
                 csvFiles);
 
             await _documentAssembler.ProcessTemplate(context, templatePath, outputPath).ConfigureAwait(false);
@@ -97,13 +99,13 @@ public sealed class Orchestrator
 
     private static IReadOnlyList<string> NormalizeSystemObjectTypes(IEnumerable<string>? requestedTypes)
     {
-        var normalized = requestedTypes?
+        var normalized = (requestedTypes?
             .Select(type => type?.Trim())
             .Where(type => !string.IsNullOrWhiteSpace(type))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .ToList()) ?? new List<string?>();
 
-        return normalized is { Count: > 0 } ? normalized : DefaultSystemObjectTypes;
+        return normalized is { Count: > 0 } ? normalized! : DefaultSystemObjectTypes;
     }
 
     private async Task<IReadOnlyList<string>> ExportSystemObjectDataAsync(
