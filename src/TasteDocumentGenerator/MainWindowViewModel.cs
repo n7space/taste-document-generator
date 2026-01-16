@@ -251,7 +251,6 @@ public partial class MainWindowViewModel : ObservableObject
 
     }
 
-
     private static string[] ParseSystemObjectTypes(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
