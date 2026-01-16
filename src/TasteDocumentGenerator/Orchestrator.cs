@@ -53,7 +53,6 @@ public sealed class Orchestrator
         var templatePath = EnsureExistingFile(parameters.TemplatePath, nameof(parameters.TemplatePath));
         var interfaceViewPath = EnsureExistingFile(parameters.InterfaceViewPath, nameof(parameters.InterfaceViewPath));
         var deploymentViewPath = EnsureExistingFile(parameters.DeploymentViewPath, nameof(parameters.DeploymentViewPath));
-        var opus2ModelPath = EnsureExistingFile(parameters.Opus2ModelPath, nameof(parameters.Opus2ModelPath));
         var outputPath = EnsureWritablePath(parameters.OutputPath, nameof(parameters.OutputPath));
         var target = EnsureNotEmpty(parameters.Target, nameof(parameters.Target));
         var templateDirectory = parameters.TemplateDirectory ?? string.Empty;
@@ -71,13 +70,19 @@ public sealed class Orchestrator
 
         try
         {
-            var csvFiles = await ExportSystemObjectDataAsync(
-                exporterBinary,
-                systemObjectTypes,
-                opus2ModelPath,
-                target,
-                exporterOutputDirectory,
-                cancellationToken).ConfigureAwait(false);
+            var csvFiles = await (string.IsNullOrWhiteSpace(parameters.Opus2ModelPath)
+                ? (Func<Task<IReadOnlyList<string>>>)(() => Task.FromResult((IReadOnlyList<string>)Array.Empty<string>()))
+                : () =>
+                {
+                    var opus2ModelPath = EnsureExistingFile(parameters.Opus2ModelPath, nameof(parameters.Opus2ModelPath));
+                    return ExportSystemObjectDataAsync(
+                        exporterBinary,
+                        systemObjectTypes,
+                        opus2ModelPath,
+                        target,
+                        exporterOutputDirectory,
+                        cancellationToken);
+                })().ConfigureAwait(false);
 
             var context = new DocumentAssembler.Context(
                 interfaceViewPath,

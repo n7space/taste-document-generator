@@ -3,9 +3,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:TasteDocumentGenerator"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="680"
         Width="800"
-        Height="450"
+        Height="680"
         Background="#202020"
         ExtendClientAreaToDecorationsHint="True"
         IsHitTestVisible="True"
@@ -62,10 +62,10 @@
                 <TextBox Grid.Row="0" Grid.Column="1" Name="Target" Text="{Binding Target}"  VerticalAlignment="Center" Margin="10,10,10,10"/>
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Input template path" VerticalAlignment="Center" Margin="10,10,10,10" />
                 <TextBox Grid.Row="1" Grid.Column="1" Name="InputTemplatePath" Text="{Binding InputTemplatePath}"  VerticalAlignment="Center" Margin="10,10,10,10"/>
-                <Button Name="SelectInputTemplatePath" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" Command="{Binding SelectInputTemplatePathCommand}">...</Button>
+                <Button Name="SelectInputTemplatePath" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" Command="{Binding SelectInputTemplatePathCommand}">...</Button>
                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Output file path" VerticalAlignment="Center" Margin="10,10,10,10" />
                 <TextBox Grid.Row="2" Grid.Column="1" Name="OutputFilePath" Text="{Binding OutputFilePath}"  VerticalAlignment="Center" Margin="10,10,10,10"/>
-                <Button Name="SelectOutputFilePath" Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" Command="{Binding SelectOutputFilePathCommand}">...</Button>
+                <Button Name="SelectOutputFilePath" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" Margin="10,10,10,10" Command="{Binding SelectOutputFilePathCommand}">...</Button>
             </Grid>
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
                <CheckBox Name="OpenDocument" IsChecked ="{Binding DoOpenDocument}" Margin="10,10,10,10" >Open document when finished</CheckBox> 

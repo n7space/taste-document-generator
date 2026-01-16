@@ -21,7 +21,7 @@ class Program
         [Option('d', "deployment-view", Required = false, HelpText = "Input Deployment View file path", Default = "deploymentview.dv.xml")]
         public string DeploymentView { get; set; } = "deploymentview.dv.xml";
 
-        [Option('p', "opus2-model-path", Required = true, HelpText = "Input OPUS2 model file path")]
+        [Option('p', "opus2-model-path", Required = false, HelpText = "Input OPUS2 model file path (optional, if not provided system object export is skipped)")]
         public string? Opus2Model { get; set; }
 
         [Option('o', "output-path", Required = true, HelpText = "Output file path")]
