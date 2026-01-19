@@ -522,6 +522,142 @@ public class DocumentAssemblerTests
         }
     }
 
+    [Fact]
+    public async Task ProcessTemplate_WithDocumentCommandAndImages_MergesImagesCorrectly()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var templatePath = Path.Combine(tempDir, "template.docx");
+            var outputPath = Path.Combine(tempDir, "output.docx");
+            var sourceDocPath = Path.Combine(tempDir, "source-with-image.docx");
+            var ivPath = Path.Combine(tempDir, "iv.xml");
+            var dvPath = Path.Combine(tempDir, "dv.xml");
+
+            // Create minimal files
+            File.WriteAllText(ivPath, "<InterfaceView/>");
+            File.WriteAllText(dvPath, "<DeploymentView/>");
+
+            // Create a source document with an image
+            using (var sourceDoc = WordprocessingDocument.Create(sourceDocPath, WordprocessingDocumentType.Document))
+            {
+                var mainPart = sourceDoc.AddMainDocumentPart();
+                mainPart.Document = new Document(new Body());
+                var body = mainPart.Document.Body;
+
+                // Add a simple paragraph with text
+                body!.Append(new Paragraph(new Run(new Text("Document with image"))));
+
+                // Add a minimal image (1x1 PNG)
+                var imagePart = mainPart.AddImagePart(ImagePartType.Png);
+                using (var stream = imagePart.GetStream())
+                {
+                    // Minimal 1x1 PNG
+                    byte[] pngData = new byte[] {
+                        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+                        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+                        0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+                        0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+                        0x42, 0x60, 0x82
+                    };
+                    stream.Write(pngData, 0, pngData.Length);
+                }
+
+                var imageRelId = mainPart.GetIdOfPart(imagePart);
+                
+                // Add a paragraph with the image
+                var imageParagraph = new Paragraph();
+                var run = new Run();
+                var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing(
+                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.Inline(
+                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent() { Cx = 990000L, Cy = 990000L },
+                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties() { Id = 1U, Name = "Picture 1" },
+                        new DocumentFormat.OpenXml.Drawing.Graphic(
+                            new DocumentFormat.OpenXml.Drawing.GraphicData(
+                                new DocumentFormat.OpenXml.Drawing.Pictures.Picture(
+                                    new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties(
+                                        new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties() { Id = 0U, Name = "Image.png" },
+                                        new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties()
+                                    ),
+                                    new DocumentFormat.OpenXml.Drawing.Pictures.BlipFill(
+                                        new DocumentFormat.OpenXml.Drawing.Blip() { Embed = imageRelId },
+                                        new DocumentFormat.OpenXml.Drawing.Stretch(
+                                            new DocumentFormat.OpenXml.Drawing.FillRectangle()
+                                        )
+                                    ),
+                                    new DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties()
+                                )
+                            ) { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
+                        )
+                    )
+                );
+                run.Append(drawing);
+                imageParagraph.Append(run);
+                body.Append(imageParagraph);
+
+                // Add a caption paragraph
+                body.Append(new Paragraph(new Run(new Text("Figure 1: Test Image"))));
+            }
+
+            // Create template with document command
+            using (var templateDoc = WordprocessingDocument.Create(templatePath, WordprocessingDocumentType.Document))
+            {
+                var mainPart = templateDoc.AddMainDocumentPart();
+                mainPart.Document = new Document(new Body());
+                var body = mainPart.Document.Body;
+                body!.Append(new Paragraph(new Run(new Text("Template start"))));
+                body.Append(new Paragraph(new Run(new Text("<TDG: document source-with-image.docx />"))));
+                body.Append(new Paragraph(new Run(new Text("Template end"))));
+            }
+
+            var assembler = new DocumentAssembler();
+            var context = new DocumentAssembler.Context(ivPath, dvPath, "ASW", tempDir, tempDir, null, null, Array.Empty<string>());
+
+            // Act
+            await assembler.ProcessTemplate(context, templatePath, outputPath);
+
+            // Assert
+            Assert.True(File.Exists(outputPath), "Output document should be created");
+
+            using (var outputDoc = WordprocessingDocument.Open(outputPath, false))
+            {
+                var body = outputDoc.MainDocumentPart!.Document!.Body!;
+                var paragraphs = body.Elements<Paragraph>().ToList();
+
+                // Verify document content
+                var allText = string.Join(" ", paragraphs.Select(p =>
+                    string.Concat(p.Descendants<Text>().Select(t => t.Text))));
+                Assert.Contains("Template start", allText);
+                Assert.Contains("Document with image", allText);
+                Assert.Contains("Figure 1: Test Image", allText);
+                Assert.Contains("Template end", allText);
+
+                // Verify image was copied
+                var imageParts = outputDoc.MainDocumentPart.ImageParts.ToList();
+                Assert.NotEmpty(imageParts);
+                Assert.Single(imageParts);
+
+                // Verify image references are valid
+                var blips = body.Descendants<DocumentFormat.OpenXml.Drawing.Blip>().ToList();
+                Assert.NotEmpty(blips);
+                foreach (var blip in blips)
+                {
+                    var embedId = blip.Embed?.Value;
+                    Assert.NotNull(embedId);
+                    var part = outputDoc.MainDocumentPart.GetPartById(embedId!);
+                    Assert.NotNull(part);
+                }
+            }
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
 }
 
 // Test helper class to expose private methods for testing
