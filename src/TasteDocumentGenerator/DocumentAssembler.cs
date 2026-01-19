@@ -10,11 +10,15 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 
-public class DocumentAssembler
+public interface IDocumentAssembler
 {
+    Task ProcessTemplate(DocumentAssembler.Context context, string inputTemplatePath, string outputDocumentPath);
+}
 
-    protected const string BEGIN = "<TDG:";
-    protected const string END = "/>";
+public class DocumentAssembler : IDocumentAssembler
+{
+    public readonly string MARKER_OPEN = "<";
+    public readonly string MARKER_CLOSE = "/>";
 
     public class Context
     {
@@ -24,8 +28,10 @@ public class DocumentAssembler
         public readonly string DeploymentViewPath;
         public readonly string TemporaryDirectory;
         public readonly string? TemplateProcessor;
+        public readonly string Tag;
+        public IReadOnlyList<string> SystemObjectCsvFiles { get; }
 
-        public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory, string? TemplateProcessor)
+        public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory, string? TemplateProcessor, string? Tag = null, IEnumerable<string>? systemObjectCsvFiles = null)
         {
             this.InterfaceViewPath = InterfaceViewPath;
             this.DeploymentViewPath = DeploymentViewPath;
@@ -33,6 +39,8 @@ public class DocumentAssembler
             this.TemplateDirectory = TemplateDirectory;
             this.Target = Target;
             this.TemplateProcessor = TemplateProcessor;
+            this.Tag = Tag ?? "TDG:";
+            SystemObjectCsvFiles = systemObjectCsvFiles?.Where(path => !string.IsNullOrWhiteSpace(path)).Select(path => path.Trim()).ToArray() ?? Array.Empty<string>();
         }
     }
 
@@ -40,9 +48,9 @@ public class DocumentAssembler
         string.Concat(paragraph.Descendants<DocumentFormat.OpenXml.Wordprocessing.Text>().Select(t => t.Text)).Trim();
 
 
-    protected string ExtractCommand(string text) => text.Substring(BEGIN.Length, text.Length - (BEGIN.Length + END.Length)).Trim();
+    protected string ExtractCommand(string text, string begin, string end) => text.Substring(begin.Length, text.Length - (begin.Length + end.Length)).Trim();
 
-    private List<DocumentFormat.OpenXml.Wordprocessing.Paragraph> FindHooks(WordprocessingDocument document, string prefix)
+    private List<DocumentFormat.OpenXml.Wordprocessing.Paragraph> FindHooks(WordprocessingDocument document, string prefix, string begin, string end)
     {
         var hooks = new List<DocumentFormat.OpenXml.Wordprocessing.Paragraph>();
         var body = document.MainDocumentPart?.Document.Body;
@@ -54,9 +62,9 @@ public class DocumentAssembler
         foreach (var paragraph in body.Descendants<DocumentFormat.OpenXml.Wordprocessing.Paragraph>())
         {
             var text = GetAllText(paragraph);
-            if (text.StartsWith(BEGIN) && text.EndsWith(END))
+            if (text.StartsWith(begin) && text.EndsWith(end))
             {
-                var content = ExtractCommand(text);
+                var content = ExtractCommand(text, begin, end);
                 if (content.StartsWith(prefix))
                 {
                     hooks.Add(paragraph);
@@ -138,12 +146,35 @@ public class DocumentAssembler
         var processInfo = new ProcessStartInfo
         {
             FileName = context.TemplateProcessor ?? "template-processor",
-            Arguments = $" --verbosity info --iv {context.InterfaceViewPath} --dv {context.DeploymentViewPath} -o {context.TemporaryDirectory} -t {templatePath} -p md2docx --value TARGET={context.Target}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = false
         };
+
+        processInfo.ArgumentList.Add("--verbosity");
+        processInfo.ArgumentList.Add("info");
+        processInfo.ArgumentList.Add("--iv");
+        processInfo.ArgumentList.Add(context.InterfaceViewPath);
+        processInfo.ArgumentList.Add("--dv");
+        processInfo.ArgumentList.Add(context.DeploymentViewPath);
+        processInfo.ArgumentList.Add("-o");
+        processInfo.ArgumentList.Add(context.TemporaryDirectory);
+        processInfo.ArgumentList.Add("-t");
+        processInfo.ArgumentList.Add(Path.Join(context.TemplateDirectory, templatePath));
+        processInfo.ArgumentList.Add("-p");
+        processInfo.ArgumentList.Add("md2docx");
+        processInfo.ArgumentList.Add("--value");
+        processInfo.ArgumentList.Add($"TARGET={context.Target}");
+
+        foreach (var csvPath in context.SystemObjectCsvFiles)
+        {
+            processInfo.ArgumentList.Add("-s");
+            processInfo.ArgumentList.Add(csvPath);
+        }
+
+        var invocationArguments = string.Join(" ", processInfo.ArgumentList);
+        Debug.WriteLine($"Calling {processInfo.FileName} with arguments {invocationArguments}");
 
         using var process = Process.Start(processInfo);
         if (process is null)
@@ -172,8 +203,10 @@ public class DocumentAssembler
 
     public async Task ProcessParagraph(Context context, WordprocessingDocument targetDocument, Paragraph paragraph)
     {
+        var begin = MARKER_OPEN + context.Tag;
+        var end = MARKER_CLOSE;
         var text = GetAllText(paragraph);
-        var command = ExtractCommand(text).Split(" ");
+        var command = ExtractCommand(text, begin, end).Split(" ");
         if (command.Length == 0)
         {
             return;
@@ -406,10 +439,12 @@ public class DocumentAssembler
 
     public async Task ProcessTemplate(Context context, string inputTemplatePath, string outputDocumentPath)
     {
+        var begin = MARKER_OPEN + context.Tag;
+        var end = MARKER_CLOSE;
         File.Copy(inputTemplatePath, outputDocumentPath, true);
         using (var document = WordprocessingDocument.Open(outputDocumentPath, true))
         {
-            var hooks = FindHooks(document, "template");
+            var hooks = FindHooks(document, "template", begin, end);
             foreach (var paragraph in hooks)
             {
                 await ProcessParagraph(context, document, paragraph);

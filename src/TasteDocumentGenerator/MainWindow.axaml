@@ -3,9 +3,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:TasteDocumentGenerator"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="680"
         Width="800"
-        Height="450"
+        Height="680"
         Background="#202020"
         ExtendClientAreaToDecorationsHint="True"
         IsHitTestVisible="True"
@@ -34,7 +34,7 @@
                             <Expander.Header>
                                 <TextBlock Text="Source data"/>
                             </Expander.Header>
-                            <Grid ColumnDefinitions="AUTO,*" RowDefinitions="AUTO,AUTO,AUTO,AUTO">
+                            <Grid ColumnDefinitions="AUTO,*" RowDefinitions="AUTO,AUTO,AUTO,AUTO,AUTO,AUTO">
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Interface View" VerticalAlignment="Center"/>
                                 <TextBox Name="InputInterfaceViewPath" Grid.Row="0" Grid.Column="1" Text="{Binding InputInterfaceViewPath}" VerticalAlignment="Center" Margin="10,10,10,0"/>
 
@@ -46,12 +46,18 @@
                             
                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="Template directory path" VerticalAlignment="Center"/>
                                 <TextBox Name="InputTemplateDirectoryPath" Grid.Row="3" Grid.Column="1" Text="{Binding InputTemplateDirectoryPath}" VerticalAlignment="Center" Margin="10,10,10,0"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="System object types" VerticalAlignment="Center"/>
+                                <TextBox Name="SystemObjectTypes" Grid.Row="4" Grid.Column="1" Text="{Binding SystemObjectTypesText}" VerticalAlignment="Center" Margin="10,10,10,0"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Tag" VerticalAlignment="Center" Margin="10,10,10,10" />
+                                <TextBox Grid.Row="5" Grid.Column="1" Name="TemplateTag" Text="{Binding TemplateTag}"  VerticalAlignment="Center" Margin="10,10,10,10"/>
                             </Grid>
                         </Expander>
                     </Grid>
                 </ScrollViewer>
             </Border>
-            <Grid Grid.Row="1" RowDefinitions="AUTO,AUTO,AUTO" ColumnDefinitions="AUTO,*,AUTO">
+            <Grid Grid.Row="1" RowDefinitions="AUTO,AUTO,AUTO,AUTO" ColumnDefinitions="AUTO,*,AUTO">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Target" VerticalAlignment="Center" Margin="10,10,10,10" />
                 <TextBox Grid.Row="0" Grid.Column="1" Name="Target" Text="{Binding Target}"  VerticalAlignment="Center" Margin="10,10,10,10"/>
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Input template path" VerticalAlignment="Center" Margin="10,10,10,10" />

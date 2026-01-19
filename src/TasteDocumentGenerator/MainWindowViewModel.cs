@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Platform.Storage;
@@ -24,6 +25,8 @@ public partial class MainWindowViewModel : ObservableObject
         public string InputTemplateDirectoryPath { get; set; } = "";
         public string Target { get; set; } = "ASW";
         public bool DoOpenDocument { get; set; } = false;
+        public string SystemObjectTypes { get; set; } = string.Join(", ", Orchestrator.DefaultSystemObjectTypes);
+        public string Tag { get; set; } = "TDG:";
     }
 
     private static string GetSettingsFilePath()
@@ -56,6 +59,10 @@ public partial class MainWindowViewModel : ObservableObject
                         Target = settings.Target;
                         InputTemplateDirectoryPath = settings.InputTemplateDirectoryPath;
                         DoOpenDocument = settings.DoOpenDocument;
+                        SystemObjectTypesText = string.IsNullOrWhiteSpace(settings.SystemObjectTypes)
+                            ? string.Join(", ", Orchestrator.DefaultSystemObjectTypes)
+                            : settings.SystemObjectTypes;
+                        TemplateTag = string.IsNullOrWhiteSpace(settings.Tag) ? "TDG:" : settings.Tag;
                     }
                 }
             }
@@ -79,7 +86,9 @@ public partial class MainWindowViewModel : ObservableObject
                 OutputFilePath = OutputFilePath,
                 Target = Target,
                 InputTemplateDirectoryPath = InputTemplateDirectoryPath,
-                DoOpenDocument = DoOpenDocument
+                DoOpenDocument = DoOpenDocument,
+                SystemObjectTypes = SystemObjectTypesText,
+                Tag = TemplateTag
             };
             var serializer = new XmlSerializer(typeof(Settings));
             using var stream = File.Create(GetSettingsFilePath());
@@ -121,6 +130,12 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _doOpenDocument = false;
+
+    [ObservableProperty]
+    private string _systemObjectTypesText = string.Join(", ", Orchestrator.DefaultSystemObjectTypes);
+
+    [ObservableProperty]
+    private string _templateTag = "TDG:";
 
     private IStorageProvider GetStorageProvider()
     {
@@ -196,14 +211,23 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task GenerateDocumentAsync()
     {
-        var da = new DocumentAssembler();
-
-        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(tempDir);
         try
         {
-            var context = new DocumentAssembler.Context(InputInterfaceViewPath, InputDeploymentViewPath, Target, InputTemplateDirectoryPath, tempDir, null);
-            await da.ProcessTemplate(context, InputTemplatePath, OutputFilePath);
+            var orchestrator = new Orchestrator(new DocumentAssembler());
+            var parameters = new Orchestrator.Parameters
+            {
+                TemplatePath = InputTemplatePath,
+                InterfaceViewPath = InputInterfaceViewPath,
+                DeploymentViewPath = InputDeploymentViewPath,
+                Opus2ModelPath = InputOpus2ModelPath,
+                OutputPath = OutputFilePath,
+                Target = Target,
+                TemplateDirectory = InputTemplateDirectoryPath,
+                SystemObjectTypes = ParseSystemObjectTypes(SystemObjectTypesText),
+                Tag = TemplateTag
+            };
+
+            await orchestrator.GenerateAsync(parameters);
             var messageBox = MessageBoxManager.GetMessageBoxStandard(
                 "Success",
                 $"Document {OutputFilePath} has been successfully created",
@@ -224,13 +248,22 @@ public partial class MainWindowViewModel : ObservableObject
                 Icon.Error);
             await messageBox.ShowAsync();
         }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
 
     }
 
+    private static string[] ParseSystemObjectTypes(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return Array.Empty<string>();
+        }
+
+        return text
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Trim())
+            .Where(part => !string.IsNullOrWhiteSpace(part))
+            .ToArray();
+    }
     [RelayCommand]
     private async Task ShowAboutAsync()
     {

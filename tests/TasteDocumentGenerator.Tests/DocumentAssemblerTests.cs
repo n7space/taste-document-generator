@@ -42,6 +42,7 @@ public class DocumentAssemblerTests
         var target = "ASW";
         var templateDir = "/templates";
         var tempDir = "/temp";
+        var csvFiles = new[] { "memory.csv", "parameters.csv" };
 
         // Act
         var context = new DocumentAssembler.Context(
@@ -50,7 +51,9 @@ public class DocumentAssemblerTests
             target,
             templateDir,
             tempDir,
-            null);
+            null,
+            null,
+            csvFiles);
 
         // Assert
         Assert.Equal(interfaceView, context.InterfaceViewPath);
@@ -58,6 +61,7 @@ public class DocumentAssemblerTests
         Assert.Equal(target, context.Target);
         Assert.Equal(templateDir, context.TemplateDirectory);
         Assert.Equal(tempDir, context.TemporaryDirectory);
+        Assert.Equal(csvFiles, context.SystemObjectCsvFiles);
     }
 
     [Fact]
@@ -232,7 +236,7 @@ public class DocumentAssemblerTests
         var assembler = new TestableDocumentAssembler();
 
         // Act
-        var result = assembler.CallExtractCommand(input);
+        var result = assembler.CallExtractCommand(input, "<TDG:", "/>");
 
         // Assert
         Assert.Equal(expected, result);
@@ -286,7 +290,7 @@ public class DocumentAssemblerTests
             File.WriteAllText(dvPath, "<DeploymentView/>");
 
             var assembler = new DocumentAssembler();
-            var context = new DocumentAssembler.Context(ivPath, dvPath, "ASW", tempDir, tempDir, null);
+            var context = new DocumentAssembler.Context(ivPath, dvPath, "ASW", tempDir, tempDir, null, null, Array.Empty<string>());
 
             // Act
             await assembler.ProcessTemplate(context, templatePath, outputPath);
@@ -538,9 +542,9 @@ public class TestableDocumentAssembler : DocumentAssembler
         return GetUsedNumberingIds(part);
     }
 
-    public string CallExtractCommand(string text)
+    public string CallExtractCommand(string text, string begin, string end)
     {
-        return ExtractCommand(text);
+        return ExtractCommand(text, begin, end);
     }
 
     public string CallGetAllText(Paragraph paragraph)

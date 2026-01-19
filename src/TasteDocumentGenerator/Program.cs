@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using CommandLine;
 
@@ -20,7 +21,7 @@ class Program
         [Option('d', "deployment-view", Required = false, HelpText = "Input Deployment View file path", Default = "deploymentview.dv.xml")]
         public string DeploymentView { get; set; } = "deploymentview.dv.xml";
 
-        [Option('p', "opus2-model-path", Required = false, HelpText = "Input OPUS2 model file path")]
+        [Option('p', "opus2-model-path", Required = false, HelpText = "Input OPUS2 model file path (optional, if not provided system object export is skipped)")]
         public string? Opus2Model { get; set; }
 
         [Option('o', "output-path", Required = true, HelpText = "Output file path")]
@@ -31,8 +32,18 @@ class Program
 
         [Option("template-directory", Required = false, HelpText = "Template directory path", Default = "")]
         public string TemplateDirectory { get; set; } = "";
+
         [Option("template-processor", Required = false, HelpText = "Template processor binary to execute [to support testing]", Default = "template-processor")]
         public string TemplateProcessor { get; set; } = "template-processor";
+
+        [Option("system-object-exporter", Required = false, HelpText = "System Object Exporter binary path", Default = Orchestrator.DefaultSystemObjectExporterBinary)]
+        public string SystemObjectExporter { get; set; } = Orchestrator.DefaultSystemObjectExporterBinary;
+
+        [Option("system-object-type", Required = false, HelpText = "System Object Type names (comma separated)", Separator = ',')]
+        public IEnumerable<string>? SystemObjectTypes { get; set; }
+
+        [Option("tag", Required = false, HelpText = "Tag for template hooks (e.g., 'TDG:')", Default = "TDG:")]
+        public string Tag { get; set; } = "TDG:";
     }
 
     [Verb("gui", HelpText = "Launch GUI")]
@@ -75,28 +86,25 @@ class Program
 
     private static async System.Threading.Tasks.Task GenerateDocumentCli(GenerateOptions options)
     {
-        var da = new DocumentAssembler();
-
-        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(tempDir);
-        try
+        var orchestrator = new Orchestrator(new DocumentAssembler());
+        var parameters = new Orchestrator.Parameters
         {
-            var context = new DocumentAssembler.Context(
-                options.InterfaceView,
-                options.DeploymentView,
-                options.Target,
-                options.TemplateDirectory,
-                tempDir,
-                options.TemplateProcessor);
+            TemplatePath = options.TemplatePath,
+            InterfaceViewPath = options.InterfaceView,
+            DeploymentViewPath = options.DeploymentView,
+            Opus2ModelPath = options.Opus2Model,
+            OutputPath = options.OutputPath,
+            Target = options.Target,
+            TemplateDirectory = options.TemplateDirectory,
+            TemplateProcessorBinary = options.TemplateProcessor,
+            SystemObjectExporterBinary = options.SystemObjectExporter,
+            SystemObjectTypes = options.SystemObjectTypes,
+            Tag = options.Tag
+        };
 
-            await da.ProcessTemplate(context, options.TemplatePath!, options.OutputPath!);
+        await orchestrator.GenerateAsync(parameters);
 
-            Console.WriteLine($"Document {options.OutputPath} has been successfully created");
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
+        Console.WriteLine($"Document {options.OutputPath} has been successfully created");
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.
