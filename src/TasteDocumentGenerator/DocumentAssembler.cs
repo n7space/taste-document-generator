@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using DynamicData.Kernel;
 
 public interface IDocumentAssembler
 {
@@ -23,13 +22,13 @@ public class DocumentAssembler : IDocumentAssembler
 
     public class Context
     {
-        public string Target;
-        public string TemplateDirectory;
-        public string InterfaceViewPath;
-        public string DeploymentViewPath;
-        public string TemporaryDirectory;
-        public string? TemplateProcessor;
-        public string Tag;
+        public readonly string Target;
+        public readonly string TemplateDirectory;
+        public readonly string InterfaceViewPath;
+        public readonly string DeploymentViewPath;
+        public readonly string TemporaryDirectory;
+        public readonly string? TemplateProcessor;
+        public readonly string Tag;
         public IReadOnlyList<string> SystemObjectCsvFiles { get; }
 
         public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory, string? TemplateProcessor, string? Tag = null, IEnumerable<string>? systemObjectCsvFiles = null)
@@ -87,16 +86,18 @@ public class DocumentAssembler : IDocumentAssembler
             var numberingIdMapping = MergeNumberingDefinitions(targetDocument, sourceDocument);
             var styleIdMapping = MergeDocumentStyles(targetDocument, sourceDocument, numberingIdMapping);
             var sourceBody = sourceDocument.MainDocumentPart?.Document.Body;
-            if (sourceBody != null)
+            if (sourceBody is null)
             {
-                foreach (var element in sourceBody.Elements())
-                {
-                    var clonedElement = element.CloneNode(true);
-                    UpdateParagraphNumbering(clonedElement, numberingIdMapping);
-                    UpdateParagraphStyle(clonedElement, styleIdMapping);
-                    parent.InsertAfter(clonedElement, insertionPoint);
-                    insertionPoint = clonedElement;
-                }
+                Debug.WriteLine($"Body is null in target document, insertion skipped");
+                return;
+            }
+            foreach (var element in sourceBody.Elements())
+            {
+                var clonedElement = element.CloneNode(true);
+                UpdateParagraphNumbering(clonedElement, numberingIdMapping);
+                UpdateParagraphStyle(clonedElement, styleIdMapping);
+                parent.InsertAfter(clonedElement, insertionPoint);
+                insertionPoint = clonedElement;
             }
         }
     }
