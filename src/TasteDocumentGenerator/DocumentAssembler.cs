@@ -499,21 +499,30 @@ public class DocumentAssembler : IDocumentAssembler
         return newImagePart;
     }
 
+    private static PartTypeInfo MimeToImageType(string contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+            return ImagePartType.Jpeg;
+
+        return contentType.ToLowerInvariant() switch
+        {
+            "image/bmp" => ImagePartType.Bmp,
+            "image/gif" => ImagePartType.Gif,
+            "image/png" => ImagePartType.Png,
+            "image/tiff" => ImagePartType.Tiff,
+            "image/x-icon" => ImagePartType.Icon,
+            "image/x-pcx" => ImagePartType.Pcx,
+            "image/jpeg" => ImagePartType.Jpeg,
+            "image/x-emf" => ImagePartType.Emf,
+            "image/x-wmf" => ImagePartType.Wmf,
+            _ => ImagePartType.Jpeg
+        };
+    }
+
     private ImagePart CreateImagePart(MainDocumentPart mainPart, string contentType)
     {
-        return contentType switch
-        {
-            "image/bmp" => mainPart.AddImagePart(ImagePartType.Bmp),
-            "image/gif" => mainPart.AddImagePart(ImagePartType.Gif),
-            "image/png" => mainPart.AddImagePart(ImagePartType.Png),
-            "image/tiff" => mainPart.AddImagePart(ImagePartType.Tiff),
-            "image/x-icon" => mainPart.AddImagePart(ImagePartType.Icon),
-            "image/x-pcx" => mainPart.AddImagePart(ImagePartType.Pcx),
-            "image/jpeg" => mainPart.AddImagePart(ImagePartType.Jpeg),
-            "image/x-emf" => mainPart.AddImagePart(ImagePartType.Emf),
-            "image/x-wmf" => mainPart.AddImagePart(ImagePartType.Wmf),
-            _ => mainPart.AddImagePart(ImagePartType.Jpeg)
-        };
+        var imageType = MimeToImageType(contentType);
+        return mainPart.AddImagePart(imageType);
     }
 
     private void UpdateImageReferences(OpenXmlElement element, Dictionary<string, string> imagePartMapping)
