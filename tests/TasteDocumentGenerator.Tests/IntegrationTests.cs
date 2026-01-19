@@ -273,7 +273,7 @@ public class IntegrationTests
         -InterfaceView is set to dummy.iv
         -DeploymentView is set to dummy.dv
         -Target is set to TestTarget
-        -OPUS2 Model is set to dummy.opus
+        -OPUS2 Model is set to dummy.xml
         -Input file is a template containing a document command referencing images.docx
         -Output file is output/with-images.docx
         -Template processor is set to data/mock-processor.sh 
