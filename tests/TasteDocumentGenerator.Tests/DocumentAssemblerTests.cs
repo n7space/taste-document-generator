@@ -33,6 +33,42 @@ public class DocumentAssemblerTests
         return filePath;
     }
 
+    private static void SafeDeleteFile(string? path)
+    {
+        if (path is null)
+        {
+            return;
+        }
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private static void SafeDeleteDirectory(string? path)
+    {
+        if (path is null)
+        {
+            return;
+        }
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, true);
+            }
+        }
+        catch
+        {
+        }
+    }
+
     [Fact]
     public void Context_ConstructorSetsAllProperties()
     {
@@ -85,7 +121,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -110,7 +146,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -135,7 +171,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -166,7 +202,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -191,7 +227,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -222,7 +258,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -266,7 +302,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -308,7 +344,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            Directory.Delete(tempDir, true);
+            SafeDeleteDirectory(tempDir);
         }
     }
 
@@ -351,7 +387,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            Directory.Delete(tempDir, true);
+            SafeDeleteDirectory(tempDir);
         }
     }
 
@@ -518,7 +554,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            Directory.Delete(tempDir, true);
+            SafeDeleteDirectory(tempDir);
         }
     }
 
@@ -567,7 +603,7 @@ public class DocumentAssemblerTests
                 }
 
                 var imageRelId = mainPart.GetIdOfPart(imagePart);
-                
+
                 // Add a paragraph with the image
                 var imageParagraph = new Paragraph();
                 var run = new Run();
@@ -590,7 +626,8 @@ public class DocumentAssemblerTests
                                     ),
                                     new DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties()
                                 )
-                            ) { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
+                            )
+                            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
                         )
                     )
                 );
@@ -654,7 +691,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            Directory.Delete(tempDir, true);
+            SafeDeleteDirectory(tempDir);
         }
     }
 

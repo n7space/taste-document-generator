@@ -211,15 +211,15 @@ public class DocumentAssembler : IDocumentAssembler
         }
         var documentPath = command[1];
         Debug.WriteLine($"Processing document {documentPath}");
-        var fullPath = Path.IsPathRooted(documentPath) 
-            ? documentPath 
+        var fullPath = Path.IsPathRooted(documentPath)
+            ? documentPath
             : Path.Join(context.TemplateDirectory, documentPath);
-        
+
         if (!File.Exists(fullPath))
         {
             throw new Exception($"Document file {fullPath} does not exist");
         }
-        
+
         InsertDocumentIntoParagraph(fullPath, targetDocument, paragraph);
     }
 
@@ -489,7 +489,7 @@ public class DocumentAssembler : IDocumentAssembler
     {
         var contentType = sourceImagePart.ContentType;
         var newImagePart = CreateImagePart(targetMainPart, contentType);
-        
+
         using (var sourceStream = sourceImagePart.GetStream())
         using (var targetStream = newImagePart.GetStream())
         {
@@ -547,17 +547,17 @@ public class DocumentAssembler : IDocumentAssembler
         {
             var templateHooks = FindHooks(document, "template", begin, end);
             var documentHooks = FindHooks(document, "document", begin, end);
-            
+
             foreach (var paragraph in templateHooks)
             {
                 await ProcessParagraph(context, document, paragraph);
             }
-            
+
             foreach (var paragraph in documentHooks)
             {
                 await ProcessParagraph(context, document, paragraph);
             }
-            
+
             document.Save();
         }
         return;

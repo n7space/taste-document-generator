@@ -351,7 +351,7 @@ public class IntegrationTests
             {
                 var body = outputDoc.MainDocumentPart!.Document!.Body!;
                 var outputText = ReadDocumentText(outputPath);
-                
+
                 // Verify template text
                 Assert.Contains("Before merged document", outputText);
                 Assert.Contains("After merged document", outputText);
