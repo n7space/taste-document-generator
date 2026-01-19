@@ -1,12 +1,7 @@
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using Xunit;
 
 namespace TasteDocumentGenerator.Tests;
 
@@ -75,7 +70,7 @@ public class IntegrationTests
         {
             var ivPath = Path.Combine(tempDir, "dummy.iv");
             var dvPath = Path.Combine(tempDir, "dummy.dv");
-            var opusPath = Path.Combine(tempDir, "dummy.opus");
+            var opusPath = Path.Combine(tempDir, "dummy.xml");
             File.WriteAllText(ivPath, "<InterfaceView />");
             File.WriteAllText(dvPath, "<DeploymentView />");
             File.WriteAllText(opusPath, "<Opus />");
@@ -163,7 +158,7 @@ public class IntegrationTests
         {
             var ivPath = Path.Combine(tempDir, "dummy.iv");
             var dvPath = Path.Combine(tempDir, "dummy.dv");
-            var opusPath = Path.Combine(tempDir, "dummy.opus");
+            var opusPath = Path.Combine(tempDir, "dummy.xml");
             File.WriteAllText(ivPath, "<InterfaceView />");
             File.WriteAllText(dvPath, "<DeploymentView />");
             File.WriteAllText(opusPath, "<Opus />");
@@ -293,7 +288,7 @@ public class IntegrationTests
         {
             var ivPath = Path.Combine(tempDir, "dummy.iv");
             var dvPath = Path.Combine(tempDir, "dummy.dv");
-            var opusPath = Path.Combine(tempDir, "dummy.opus");
+            var opusPath = Path.Combine(tempDir, "dummy.xml");
             File.WriteAllText(ivPath, "<InterfaceView />");
             File.WriteAllText(dvPath, "<DeploymentView />");
             File.WriteAllText(opusPath, "<Opus />");
@@ -364,7 +359,8 @@ public class IntegrationTests
                 // Verify images were copied
                 var imageParts = outputDoc.MainDocumentPart.ImageParts.ToList();
                 Assert.NotEmpty(imageParts);
-
+                // Reference document contains documentation of 2 SDL processes, each with 3 images
+                Assert.Equal(6, imageParts.Count());
                 // Verify all image references are valid
                 var blips = body.Descendants<DocumentFormat.OpenXml.Drawing.Blip>().ToList();
                 if (blips.Any())
