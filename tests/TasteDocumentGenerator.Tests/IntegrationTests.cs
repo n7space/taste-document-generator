@@ -360,7 +360,7 @@ public class IntegrationTests
                 var imageParts = outputDoc.MainDocumentPart.ImageParts.ToList();
                 Assert.NotEmpty(imageParts);
                 // Reference document contains documentation of 2 SDL processes, each with 3 images
-                Assert.Equal(6, imageParts.Count());
+                Assert.Equal(6, imageParts.Count);
                 // Verify all image references are valid
                 var blips = body.Descendants<DocumentFormat.OpenXml.Drawing.Blip>().ToList();
                 if (blips.Any())
