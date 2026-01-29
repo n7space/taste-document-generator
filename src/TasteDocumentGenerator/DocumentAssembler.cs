@@ -85,6 +85,7 @@ public class DocumentAssembler : IDocumentAssembler
         {
             var numberingIdMapping = MergeNumberingDefinitions(targetDocument, sourceDocument);
             var styleIdMapping = MergeDocumentStyles(targetDocument, sourceDocument, numberingIdMapping);
+            var imagePartMapping = MergeImageParts(targetDocument, sourceDocument);
             var sourceBody = sourceDocument.MainDocumentPart?.Document.Body;
             if (sourceBody is null)
             {
@@ -96,6 +97,7 @@ public class DocumentAssembler : IDocumentAssembler
                 var clonedElement = element.CloneNode(true);
                 UpdateParagraphNumbering(clonedElement, numberingIdMapping);
                 UpdateParagraphStyle(clonedElement, styleIdMapping);
+                UpdateImageReferences(clonedElement, imagePartMapping);
                 parent.InsertAfter(clonedElement, insertionPoint);
                 insertionPoint = clonedElement;
             }
@@ -201,6 +203,26 @@ public class DocumentAssembler : IDocumentAssembler
         InsertDocumentIntoParagraph(instancePath, targetDocument, paragraph);
     }
 
+    public void ProcessParagraphWithDocument(Context context, WordprocessingDocument targetDocument, Paragraph paragraph, string[] command)
+    {
+        if (command.Length != 2)
+        {
+            throw new Exception($"Incorrect document invocation: {string.Join(" ", command)}");
+        }
+        var documentPath = command[1];
+        Debug.WriteLine($"Processing document {documentPath}");
+        var fullPath = Path.IsPathRooted(documentPath)
+            ? documentPath
+            : Path.Join(context.TemplateDirectory, documentPath);
+
+        if (!File.Exists(fullPath))
+        {
+            throw new Exception($"Document file {fullPath} does not exist");
+        }
+
+        InsertDocumentIntoParagraph(fullPath, targetDocument, paragraph);
+    }
+
     public async Task ProcessParagraph(Context context, WordprocessingDocument targetDocument, Paragraph paragraph)
     {
         var begin = MARKER_OPEN + context.Tag;
@@ -217,6 +239,11 @@ public class DocumentAssembler : IDocumentAssembler
             case "template":
                 {
                     await ProcessParagraphWithTemplate(context, targetDocument, paragraph, command);
+                    break;
+                }
+            case "document":
+                {
+                    ProcessParagraphWithDocument(context, targetDocument, paragraph, command);
                     break;
                 }
             default:
@@ -436,6 +463,80 @@ public class DocumentAssembler : IDocumentAssembler
         }
     }
 
+    private Dictionary<string, string> MergeImageParts(WordprocessingDocument target, WordprocessingDocument source)
+    {
+        var mapping = new Dictionary<string, string>();
+        var targetMainPart = target.MainDocumentPart;
+        var sourceMainPart = source.MainDocumentPart;
+
+        if (sourceMainPart == null || targetMainPart == null)
+        {
+            return mapping;
+        }
+
+        foreach (var imagePart in sourceMainPart.ImageParts)
+        {
+            var sourceRelId = sourceMainPart.GetIdOfPart(imagePart);
+            var newImagePart = CopyImagePart(targetMainPart, imagePart);
+            var targetRelId = targetMainPart.GetIdOfPart(newImagePart);
+            mapping[sourceRelId] = targetRelId;
+        }
+
+        return mapping;
+    }
+
+    private ImagePart CopyImagePart(MainDocumentPart targetMainPart, ImagePart sourceImagePart)
+    {
+        var contentType = sourceImagePart.ContentType;
+        var newImagePart = CreateImagePart(targetMainPart, contentType);
+
+        using (var sourceStream = sourceImagePart.GetStream())
+        using (var targetStream = newImagePart.GetStream())
+        {
+            sourceStream.CopyTo(targetStream);
+        }
+
+        return newImagePart;
+    }
+
+    private static PartTypeInfo MimeToImageType(string contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+            return ImagePartType.Jpeg;
+
+        return contentType.ToLowerInvariant() switch
+        {
+            "image/bmp" => ImagePartType.Bmp,
+            "image/gif" => ImagePartType.Gif,
+            "image/png" => ImagePartType.Png,
+            "image/tiff" => ImagePartType.Tiff,
+            "image/x-icon" => ImagePartType.Icon,
+            "image/x-pcx" => ImagePartType.Pcx,
+            "image/jpeg" => ImagePartType.Jpeg,
+            "image/x-emf" => ImagePartType.Emf,
+            "image/x-wmf" => ImagePartType.Wmf,
+            _ => ImagePartType.Jpeg
+        };
+    }
+
+    private ImagePart CreateImagePart(MainDocumentPart mainPart, string contentType)
+    {
+        var imageType = MimeToImageType(contentType);
+        return mainPart.AddImagePart(imageType);
+    }
+
+    private void UpdateImageReferences(OpenXmlElement element, Dictionary<string, string> imagePartMapping)
+    {
+        foreach (var blip in element.Descendants<DocumentFormat.OpenXml.Drawing.Blip>())
+        {
+            var embedId = blip.Embed?.Value;
+            if (embedId != null && imagePartMapping.ContainsKey(embedId))
+            {
+                blip.Embed = imagePartMapping[embedId];
+            }
+        }
+    }
+
 
     public async Task ProcessTemplate(Context context, string inputTemplatePath, string outputDocumentPath)
     {
@@ -444,11 +545,19 @@ public class DocumentAssembler : IDocumentAssembler
         File.Copy(inputTemplatePath, outputDocumentPath, true);
         using (var document = WordprocessingDocument.Open(outputDocumentPath, true))
         {
-            var hooks = FindHooks(document, "template", begin, end);
-            foreach (var paragraph in hooks)
+            var templateHooks = FindHooks(document, "template", begin, end);
+            var documentHooks = FindHooks(document, "document", begin, end);
+
+            foreach (var paragraph in templateHooks)
             {
                 await ProcessParagraph(context, document, paragraph);
             }
+
+            foreach (var paragraph in documentHooks)
+            {
+                await ProcessParagraph(context, document, paragraph);
+            }
+
             document.Save();
         }
         return;

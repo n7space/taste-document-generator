@@ -6,6 +6,15 @@ namespace TasteDocumentGenerator.Tests;
 
 public class DocumentAssemblerTests
 {
+    // Minimal 1x1 PNG image data
+    private static readonly byte[] PngData = new byte[] {
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+        0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+        0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+        0x42, 0x60, 0x82
+    };
+
     private static string CreateMinimalDocx(string filePath, string? content = null)
     {
         using (var doc = WordprocessingDocument.Create(filePath, WordprocessingDocumentType.Document))
@@ -31,6 +40,191 @@ public class DocumentAssemblerTests
             mainPart.Document = new Document(new Body());
         }
         return filePath;
+    }
+
+    private static void SafeDeleteFile(string? path)
+    {
+        if (path is null)
+        {
+            return;
+        }
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private static void SafeDeleteDirectory(string? path)
+    {
+        if (path is null)
+        {
+            return;
+        }
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, true);
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private static DocumentAssembler.Context CreateTestContext(
+        string tempDir,
+        string interfaceView = "iv.xml",
+        string deploymentView = "dv.xml",
+        string target = "ASW")
+    {
+        var ivPath = Path.Combine(tempDir, interfaceView);
+        var dvPath = Path.Combine(tempDir, deploymentView);
+        File.WriteAllText(ivPath, "<InterfaceView/>");
+        File.WriteAllText(dvPath, "<DeploymentView/>");
+        return new DocumentAssembler.Context(
+            ivPath,
+            dvPath,
+            target,
+            tempDir,
+            tempDir,
+            null,
+            null,
+            Array.Empty<string>());
+    }
+
+    private static string CreateDocumentWithImage(string docPath)
+    {
+        using (var doc = WordprocessingDocument.Create(docPath, WordprocessingDocumentType.Document))
+        {
+            var mainPart = doc.AddMainDocumentPart();
+            mainPart.Document = new Document(new Body());
+            var body = mainPart.Document.Body;
+
+            // Add a simple paragraph with text
+            body!.Append(new Paragraph(new Run(new Text("Document with image"))));
+
+            // Add image part
+            var imagePart = mainPart.AddImagePart(ImagePartType.Png);
+            using (var stream = imagePart.GetStream())
+            {
+                stream.Write(PngData, 0, PngData.Length);
+            }
+
+            var imageRelId = mainPart.GetIdOfPart(imagePart);
+
+            // Add a paragraph with the image
+            var imageParagraph = new Paragraph();
+            var run = new Run();
+            var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing(
+                new DocumentFormat.OpenXml.Drawing.Wordprocessing.Inline(
+                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent() { Cx = 990000L, Cy = 990000L },
+                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties() { Id = 1U, Name = "Picture 1" },
+                    new DocumentFormat.OpenXml.Drawing.Graphic(
+                        new DocumentFormat.OpenXml.Drawing.GraphicData(
+                            new DocumentFormat.OpenXml.Drawing.Pictures.Picture(
+                                new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties(
+                                    new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties() { Id = 0U, Name = "Image.png" },
+                                    new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties()
+                                ),
+                                new DocumentFormat.OpenXml.Drawing.Pictures.BlipFill(
+                                    new DocumentFormat.OpenXml.Drawing.Blip() { Embed = imageRelId },
+                                    new DocumentFormat.OpenXml.Drawing.Stretch(
+                                        new DocumentFormat.OpenXml.Drawing.FillRectangle()
+                                    )
+                                ),
+                                new DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties()
+                            )
+                        )
+                        { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
+                    )
+                )
+            );
+            run.Append(drawing);
+            imageParagraph.Append(run);
+            body.Append(imageParagraph);
+
+            // Add a caption paragraph
+            body.Append(new Paragraph(new Run(new Text("Figure 1: Test Image"))));
+        }
+        return docPath;
+    }
+
+    private static void AddParagraphWithNumberingAndStyles(Body body, string styleId, string text)
+    {
+        body.Append(new Paragraph(new Run(new Text($"Plain text - {text}"))));
+
+        var styledPara = new Paragraph();
+        styledPara.ParagraphProperties = new ParagraphProperties(
+            new ParagraphStyleId() { Val = styleId }
+        );
+        styledPara.Append(new Run(new Text($"Styled text - {text}")));
+        body.Append(styledPara);
+
+        var numberedPara = new Paragraph();
+        numberedPara.ParagraphProperties = new ParagraphProperties(
+            new NumberingProperties(
+                new NumberingLevelReference() { Val = 0 },
+                new NumberingId() { Val = 1 }
+            )
+        );
+        numberedPara.Append(new Run(new Text("Numbered item")));
+        body.Append(numberedPara);
+    }
+
+    private static void CreateNumberingAndStyle(MainDocumentPart mainPart, string styleName, string styleId)
+    {
+        // Add numbering part with abstract numbering and instance
+        var numberingPart = mainPart.AddNewPart<NumberingDefinitionsPart>();
+        numberingPart.Numbering = new Numbering();
+        var abstractNum = new AbstractNum() { AbstractNumberId = 0 };
+        abstractNum.Append(new MultiLevelType() { Val = MultiLevelValues.HybridMultilevel });
+        numberingPart.Numbering.Append(abstractNum);
+        numberingPart.Numbering.Append(new NumberingInstance(
+            new AbstractNumId() { Val = 0 }
+        )
+        { NumberID = 1 });
+
+        // Add styles part
+        var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
+        stylesPart.Styles = new Styles();
+        var customStyle = new Style()
+        {
+            StyleId = styleId,
+            Type = StyleValues.Paragraph
+        };
+        customStyle.Append(new StyleName() { Val = styleName });
+        stylesPart.Styles.Append(customStyle);
+    }
+
+    private static void CreateSourceDocumentWithNumberingAndStyles(string path)
+    {
+        using (var doc = WordprocessingDocument.Create(path, WordprocessingDocumentType.Document))
+        {
+            var mainPart = doc.AddMainDocumentPart();
+            mainPart.Document = new Document(new Body());
+            CreateNumberingAndStyle(mainPart, "Source Style 1", "SourceStyle1");
+            var body = mainPart.Document.Body!;
+            AddParagraphWithNumberingAndStyles(body, "SourceStyle1", "Some source text");
+        }
+    }
+
+    private static void CreateTargetDocumentWithNumberingAndStyles(string path)
+    {
+        using (var doc = WordprocessingDocument.Create(path, WordprocessingDocumentType.Document))
+        {
+            var mainPart = doc.AddMainDocumentPart();
+            mainPart.Document = new Document(new Body());
+            CreateNumberingAndStyle(mainPart, "Custom Style 1", "CustomStyle1");
+            var body = mainPart.Document.Body!;
+            AddParagraphWithNumberingAndStyles(body, "CustomStyle1", "Some target text");
+        }
     }
 
     [Fact]
@@ -85,7 +279,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -110,7 +304,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -135,7 +329,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -166,7 +360,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -191,7 +385,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -222,7 +416,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -266,7 +460,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            File.Delete(tempFile);
+            SafeDeleteFile(tempFile);
         }
     }
 
@@ -281,16 +475,12 @@ public class DocumentAssemblerTests
         {
             var templatePath = Path.Combine(tempDir, "template.docx");
             var outputPath = Path.Combine(tempDir, "output.docx");
-            var ivPath = Path.Combine(tempDir, "iv.xml");
-            var dvPath = Path.Combine(tempDir, "dv.xml");
 
             // Create minimal files
             CreateMinimalDocx(templatePath, "Simple template without hooks");
-            File.WriteAllText(ivPath, "<InterfaceView/>");
-            File.WriteAllText(dvPath, "<DeploymentView/>");
+            var context = CreateTestContext(tempDir);
 
             var assembler = new DocumentAssembler();
-            var context = new DocumentAssembler.Context(ivPath, dvPath, "ASW", tempDir, tempDir, null, null, Array.Empty<string>());
 
             // Act
             await assembler.ProcessTemplate(context, templatePath, outputPath);
@@ -308,7 +498,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            Directory.Delete(tempDir, true);
+            SafeDeleteDirectory(tempDir);
         }
     }
 
@@ -351,7 +541,7 @@ public class DocumentAssemblerTests
         }
         finally
         {
-            Directory.Delete(tempDir, true);
+            SafeDeleteDirectory(tempDir);
         }
     }
 
@@ -367,102 +557,8 @@ public class DocumentAssemblerTests
             var targetPath = Path.Combine(tempDir, "target.docx");
             var sourcePath = Path.Combine(tempDir, "source.docx");
 
-            // Create target document with numbering and styles
-            using (var targetDoc = WordprocessingDocument.Create(targetPath, WordprocessingDocumentType.Document))
-            {
-                var mainPart = targetDoc.AddMainDocumentPart();
-                mainPart.Document = new Document(new Body());
-
-                // Add numbering part with abstract numbering and instance
-                var numberingPart = mainPart.AddNewPart<NumberingDefinitionsPart>();
-                numberingPart.Numbering = new Numbering();
-                var abstractNum = new AbstractNum() { AbstractNumberId = 0 };
-                abstractNum.Append(new MultiLevelType() { Val = MultiLevelValues.HybridMultilevel });
-                numberingPart.Numbering.Append(abstractNum);
-                numberingPart.Numbering.Append(new NumberingInstance(
-                    new AbstractNumId() { Val = 0 }
-                )
-                { NumberID = 1 });
-
-                // Add styles part with a custom style
-                var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
-                stylesPart.Styles = new Styles();
-                var customStyle = new Style()
-                {
-                    StyleId = "CustomStyle1",
-                    Type = StyleValues.Paragraph
-                };
-                customStyle.Append(new StyleName() { Val = "Custom Style 1" });
-                stylesPart.Styles.Append(customStyle);
-
-                // Add target content with a placeholder paragraph
-                var body = mainPart.Document.Body!;
-                var placeholderPara = new Paragraph(new Run(new Text("PLACEHOLDER")));
-                body.Append(placeholderPara);
-
-                // Add a paragraph with numbering
-                var numberedPara = new Paragraph();
-                numberedPara.ParagraphProperties = new ParagraphProperties(
-                    new NumberingProperties(
-                        new NumberingLevelReference() { Val = 0 },
-                        new NumberingId() { Val = 1 }
-                    )
-                );
-                numberedPara.Append(new Run(new Text("Target numbered item")));
-                body.Append(numberedPara);
-            }
-
-            // Create source document with different numbering and styles
-            using (var sourceDoc = WordprocessingDocument.Create(sourcePath, WordprocessingDocumentType.Document))
-            {
-                var mainPart = sourceDoc.AddMainDocumentPart();
-                mainPart.Document = new Document(new Body());
-
-                // Add numbering to source (will be remapped)
-                var numberingPart = mainPart.AddNewPart<NumberingDefinitionsPart>();
-                numberingPart.Numbering = new Numbering();
-                var abstractNum = new AbstractNum() { AbstractNumberId = 0 };
-                abstractNum.Append(new MultiLevelType() { Val = MultiLevelValues.HybridMultilevel });
-                numberingPart.Numbering.Append(abstractNum);
-                numberingPart.Numbering.Append(new NumberingInstance(
-                    new AbstractNumId() { Val = 0 }
-                )
-                { NumberID = 1 });
-
-                // Add styles to source
-                var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
-                stylesPart.Styles = new Styles();
-                var sourceStyle = new Style()
-                {
-                    StyleId = "SourceStyle1",
-                    Type = StyleValues.Paragraph
-                };
-                sourceStyle.Append(new StyleName() { Val = "Source Style 1" });
-                stylesPart.Styles.Append(sourceStyle);
-
-                // Add source content
-                var body = mainPart.Document.Body!;
-
-                var simplePara = new Paragraph(new Run(new Text("Simple paragraph from source")));
-                body.Append(simplePara);
-
-                var styledPara = new Paragraph();
-                styledPara.ParagraphProperties = new ParagraphProperties(
-                    new ParagraphStyleId() { Val = "SourceStyle1" }
-                );
-                styledPara.Append(new Run(new Text("Styled paragraph from source")));
-                body.Append(styledPara);
-
-                var numberedPara = new Paragraph();
-                numberedPara.ParagraphProperties = new ParagraphProperties(
-                    new NumberingProperties(
-                        new NumberingLevelReference() { Val = 0 },
-                        new NumberingId() { Val = 1 }
-                    )
-                );
-                numberedPara.Append(new Run(new Text("Source numbered item")));
-                body.Append(numberedPara);
-            }
+            CreateTargetDocumentWithNumberingAndStyles(targetPath);
+            CreateSourceDocumentWithNumberingAndStyles(sourcePath);
 
             var assembler = new DocumentAssembler();
 
@@ -482,8 +578,8 @@ public class DocumentAssemblerTests
                 var body = targetDoc.MainDocumentPart!.Document!.Body!;
                 var paragraphs = body.Elements<Paragraph>().ToList();
 
-                // Should have: empty placeholder + 3 source paragraphs + 1 target numbered = 5 total
-                Assert.True(paragraphs.Count >= 4, $"Expected at least 4 paragraphs, got {paragraphs.Count}");
+                // Common code creates 3 paragraphs for each of the documents
+                Assert.True(paragraphs.Count == 6, $"Expected 6 paragraphs, got {paragraphs.Count}");
 
                 // Check that numbering was merged
                 var numberingPart = targetDoc.MainDocumentPart!.NumberingDefinitionsPart;
@@ -511,14 +607,86 @@ public class DocumentAssemblerTests
                 // Verify text content was inserted
                 var allText = string.Join(" ", paragraphs.Select(p =>
                     string.Concat(p.Descendants<Text>().Select(t => t.Text))));
-                Assert.Contains("Simple paragraph from source", allText);
-                Assert.Contains("Styled paragraph from source", allText);
-                Assert.Contains("Source numbered item", allText);
+                Assert.Contains("Some source text", allText);
+                Assert.Contains("Some target text", allText);
+                Assert.Contains("Numbered item", allText);
             }
         }
         finally
         {
-            Directory.Delete(tempDir, true);
+            SafeDeleteDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task ProcessTemplate_WithDocumentCommandAndImages_MergesImagesCorrectly()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var templatePath = Path.Combine(tempDir, "template.docx");
+            var outputPath = Path.Combine(tempDir, "output.docx");
+            var sourceDocPath = Path.Combine(tempDir, "source-with-image.docx");
+
+            // Create files
+            var context = CreateTestContext(tempDir);
+            CreateDocumentWithImage(sourceDocPath);
+
+            // Create template with document command
+            using (var templateDoc = WordprocessingDocument.Create(templatePath, WordprocessingDocumentType.Document))
+            {
+                var mainPart = templateDoc.AddMainDocumentPart();
+                mainPart.Document = new Document(new Body());
+                var body = mainPart.Document.Body;
+                body!.Append(new Paragraph(new Run(new Text("Template start"))));
+                body.Append(new Paragraph(new Run(new Text("<TDG: document source-with-image.docx />"))));
+                body.Append(new Paragraph(new Run(new Text("Template end"))));
+            }
+
+            var assembler = new DocumentAssembler();
+
+            // Act
+            await assembler.ProcessTemplate(context, templatePath, outputPath);
+
+            // Assert
+            Assert.True(File.Exists(outputPath), "Output document should be created");
+
+            using (var outputDoc = WordprocessingDocument.Open(outputPath, false))
+            {
+                var body = outputDoc.MainDocumentPart!.Document!.Body!;
+                var paragraphs = body.Elements<Paragraph>().ToList();
+
+                // Verify document content
+                var allText = string.Join(" ", paragraphs.Select(p =>
+                    string.Concat(p.Descendants<Text>().Select(t => t.Text))));
+                Assert.Contains("Template start", allText);
+                Assert.Contains("Document with image", allText);
+                Assert.Contains("Figure 1: Test Image", allText);
+                Assert.Contains("Template end", allText);
+
+                // Verify image was copied
+                var imageParts = outputDoc.MainDocumentPart.ImageParts.ToList();
+                Assert.NotEmpty(imageParts);
+                Assert.Single(imageParts);
+
+                // Verify image references are valid
+                var blips = body.Descendants<DocumentFormat.OpenXml.Drawing.Blip>().ToList();
+                Assert.NotEmpty(blips);
+                foreach (var blip in blips)
+                {
+                    var embedId = blip.Embed?.Value;
+                    Assert.NotNull(embedId);
+                    var part = outputDoc.MainDocumentPart.GetPartById(embedId!);
+                    Assert.NotNull(part);
+                }
+            }
+        }
+        finally
+        {
+            SafeDeleteDirectory(tempDir);
         }
     }
 

@@ -1,11 +1,7 @@
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using Xunit;
 
 namespace TasteDocumentGenerator.Tests;
 
@@ -74,7 +70,7 @@ public class IntegrationTests
         {
             var ivPath = Path.Combine(tempDir, "dummy.iv");
             var dvPath = Path.Combine(tempDir, "dummy.dv");
-            var opusPath = Path.Combine(tempDir, "dummy.opus");
+            var opusPath = Path.Combine(tempDir, "dummy.xml");
             File.WriteAllText(ivPath, "<InterfaceView />");
             File.WriteAllText(dvPath, "<DeploymentView />");
             File.WriteAllText(opusPath, "<Opus />");
@@ -162,7 +158,7 @@ public class IntegrationTests
         {
             var ivPath = Path.Combine(tempDir, "dummy.iv");
             var dvPath = Path.Combine(tempDir, "dummy.dv");
-            var opusPath = Path.Combine(tempDir, "dummy.opus");
+            var opusPath = Path.Combine(tempDir, "dummy.xml");
             File.WriteAllText(ivPath, "<InterfaceView />");
             File.WriteAllText(dvPath, "<DeploymentView />");
             File.WriteAllText(opusPath, "<Opus />");
@@ -266,5 +262,138 @@ public class IntegrationTests
         return body == null
             ? string.Empty
             : string.Concat(body.Descendants<Text>().Select(t => t.Text));
+    }
+
+    [Fact]
+    public async Task CliInterface_MergesDocumentWithImages()
+    {
+        /*
+        # Test specification (DO NOT REMOVE)
+        TasteDocumentGenerator is executed using dotnet run, in generate mode, with the following arguments:
+        -InterfaceView is set to dummy.iv
+        -DeploymentView is set to dummy.dv
+        -Target is set to TestTarget
+        -OPUS2 Model is set to dummy.xml
+        -Input file is a template containing a document command referencing images.docx
+        -Output file is output/with-images.docx
+        -Template processor is set to data/mock-processor.sh 
+        The final produced output contains the images.docx content merged inside, including images.
+        All image parts are properly copied and image references are valid.
+        */
+        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var ivPath = Path.Combine(tempDir, "dummy.iv");
+            var dvPath = Path.Combine(tempDir, "dummy.dv");
+            var opusPath = Path.Combine(tempDir, "dummy.xml");
+            File.WriteAllText(ivPath, "<InterfaceView />");
+            File.WriteAllText(dvPath, "<DeploymentView />");
+            File.WriteAllText(opusPath, "<Opus />");
+
+            // Copy images.docx to the temp directory
+            var imagesDocPath = Path.Combine(repoRoot, "data", "images.docx");
+            Assert.True(File.Exists(imagesDocPath), $"Images document not found: {imagesDocPath}");
+            var localImagesPath = Path.Combine(tempDir, "images.docx");
+            File.Copy(imagesDocPath, localImagesPath);
+
+            // Create a template with document command referencing images.docx
+            var templatePath = Path.Combine(tempDir, "template-with-doc-cmd.docx");
+            using (var templateDoc = WordprocessingDocument.Create(templatePath, WordprocessingDocumentType.Document))
+            {
+                var mainPart = templateDoc.AddMainDocumentPart();
+                mainPart.Document = new Document(new Body());
+                var body = mainPart.Document.Body;
+                body!.Append(new Paragraph(new Run(new Text("Before merged document"))));
+                body.Append(new Paragraph(new Run(new Text("<TDG: document images.docx />"))));
+                body.Append(new Paragraph(new Run(new Text("After merged document"))));
+            }
+
+            var outputDir = Path.Combine(tempDir, "output");
+            Directory.CreateDirectory(outputDir);
+            var outputPath = Path.Combine(outputDir, "with-images.docx");
+
+            var mockProcessor = Path.Combine(repoRoot, "data", "mock-processor.sh");
+            Assert.True(File.Exists(mockProcessor), $"Mock processor not found: {mockProcessor}");
+
+            var mockExporter = Path.Combine(repoRoot, "data", "mock-exporter.sh");
+            Assert.True(File.Exists(mockExporter), $"Mock exporter not found: {mockExporter}");
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"run --project \"src/TasteDocumentGenerator/TasteDocumentGenerator.csproj\" -- generate -t \"{templatePath}\" -i \"{ivPath}\" -d \"{dvPath}\" -p \"{opusPath}\" -o \"{outputPath}\" --target TestTarget --template-directory \"{tempDir}\" --template-processor \"{mockProcessor}\" --system-object-exporter \"{mockExporter}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                WorkingDirectory = repoRoot
+            };
+
+            using var process = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start dotnet run process");
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+
+            if (process.ExitCode != 0)
+            {
+                throw new Exception($"Process failed with exit code {process.ExitCode}. STDOUT: {stdout}. STDERR: {stderr}");
+            }
+
+            Assert.Equal(0, process.ExitCode);
+            Assert.True(File.Exists(outputPath), "Output file should be created");
+
+            // Verify the output document
+            using (var outputDoc = WordprocessingDocument.Open(outputPath, false))
+            {
+                var body = outputDoc.MainDocumentPart!.Document!.Body!;
+                var outputText = ReadDocumentText(outputPath);
+
+                // Verify template text
+                Assert.Contains("Before merged document", outputText);
+                Assert.Contains("After merged document", outputText);
+
+                // Verify images were copied
+                var imageParts = outputDoc.MainDocumentPart.ImageParts.ToList();
+                Assert.NotEmpty(imageParts);
+                // Reference document contains documentation of 2 SDL processes, each with 3 images
+                Assert.Equal(6, imageParts.Count);
+                // Verify all image references are valid
+                var blips = body.Descendants<DocumentFormat.OpenXml.Drawing.Blip>().ToList();
+                if (blips.Any())
+                {
+                    foreach (var blip in blips)
+                    {
+                        var embedId = blip.Embed?.Value;
+                        Assert.NotNull(embedId);
+                        var part = outputDoc.MainDocumentPart.GetPartById(embedId!);
+                        Assert.NotNull(part);
+                    }
+                }
+            }
+
+            // Verify the source images.docx has images to merge
+            using (var sourceDoc = WordprocessingDocument.Open(localImagesPath, false))
+            {
+                var sourceImageParts = sourceDoc.MainDocumentPart!.ImageParts.ToList();
+                Assert.NotEmpty(sourceImageParts);
+            }
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
+            catch
+            {
+            }
+        }
     }
 }
