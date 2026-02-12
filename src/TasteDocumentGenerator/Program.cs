@@ -27,8 +27,8 @@ class Program
         [Option('o', "output-path", Required = true, HelpText = "Output file path")]
         public string? OutputPath { get; set; }
 
-        [Option("target", Required = false, HelpText = "Target system", Default = "ASW")]
-        public string Target { get; set; } = "ASW";
+        [Option("target", Required = false, HelpText = "Target system")]
+        public string? Target { get; set; }
 
         [Option("template-directory", Required = false, HelpText = "Template directory path", Default = "")]
         public string TemplateDirectory { get; set; } = "";

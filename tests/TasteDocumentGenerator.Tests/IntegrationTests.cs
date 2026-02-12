@@ -151,8 +151,10 @@ public class IntegrationTests
         {
             var ivPath = Path.Combine(tempDir, "dummy.iv");
             var dvPath = Path.Combine(tempDir, "dummy.dv");
+            var opusPath = Path.Combine(tempDir, "dummy.xml");
             File.WriteAllText(ivPath, "<InterfaceView />");
             File.WriteAllText(dvPath, "<DeploymentView />");
+            File.WriteAllText(opusPath, "<Opus />");
 
             var templatePath = Path.Combine(repoRoot, "data", "test_in_simple.docx");
             Assert.True(File.Exists(templatePath), $"Template file not found: {templatePath}");
@@ -170,7 +172,7 @@ public class IntegrationTests
             var psi = new ProcessStartInfo
             {
                 FileName = "dotnet",
-                Arguments = $"run --project \"src/TasteDocumentGenerator/TasteDocumentGenerator.csproj\" -- generate -t \"{templatePath}\" -i \"{ivPath}\" -d \"{dvPath}\" -o \"{outputPath}\" --template-processor \"{mockProcessor}\" --system-object-exporter \"{mockExporter}\"",
+                Arguments = $"run --project \"src/TasteDocumentGenerator/TasteDocumentGenerator.csproj\" -- generate -t \"{templatePath}\" -i \"{ivPath}\" -d \"{dvPath}\" -p \"{opusPath}\" -o \"{outputPath}\" --template-processor \"{mockProcessor}\" --system-object-exporter \"{mockExporter}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -187,10 +189,10 @@ public class IntegrationTests
             Assert.Equal(0, process.ExitCode);
             Assert.True(File.Exists(outputPath), "Output file should be created");
 
-            // Verify mock processor was called and that it was NOT passed a --target
+            // Verify mock processor was called and that it was NOT passed a TARGET value
             Assert.True(File.Exists(logPath), "Mock processor log should exist");
             var logContents = await File.ReadAllTextAsync(logPath);
-            Assert.DoesNotContain("--target", logContents);
+            Assert.DoesNotContain("TARGET", logContents);
 
             // Verify CSV extraction was skipped: exporter should not have been invoked
             Assert.False(File.Exists(exporterLogPath), "Mock exporter log should not exist when no target provided");
