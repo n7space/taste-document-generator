@@ -186,7 +186,7 @@ public class IntegrationTests
             await stdoutTask;
             await stderrTask;
 
-            Assert.Equal(0, process.ExitCode);
+            Assert.True(process.ExitCode == 0, $"Process exited with code {process.ExitCode}. stderr: {stderr}");
             Assert.True(File.Exists(outputPath), "Output file should be created");
 
             // Verify mock processor was called and that it was NOT passed a TARGET value
