@@ -120,7 +120,7 @@ public partial class MainWindowViewModel : ObservableObject
     private string _inputTemplateDirectoryPath = "";
 
     [ObservableProperty]
-    private string _target = "ASW";
+    private string _target = "";
 
     [ObservableProperty]
     private string _inputTemplatePath = "sdd-template.docx";
@@ -221,7 +221,7 @@ public partial class MainWindowViewModel : ObservableObject
                 DeploymentViewPath = InputDeploymentViewPath,
                 Opus2ModelPath = InputOpus2ModelPath,
                 OutputPath = OutputFilePath,
-                Target = Target,
+                Target = string.IsNullOrWhiteSpace(Target) ? null : Target, // Convert empty string to null
                 TemplateDirectory = InputTemplateDirectoryPath,
                 SystemObjectTypes = ParseSystemObjectTypes(SystemObjectTypesText),
                 Tag = TemplateTag
