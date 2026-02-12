@@ -183,8 +183,8 @@ public class IntegrationTests
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
             await process.WaitForExitAsync();
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
+            await stdoutTask;
+            await stderrTask;
 
             Assert.Equal(0, process.ExitCode);
             Assert.True(File.Exists(outputPath), "Output file should be created");
