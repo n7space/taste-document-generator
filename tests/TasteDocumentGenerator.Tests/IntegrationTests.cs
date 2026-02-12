@@ -130,6 +130,109 @@ public class IntegrationTests
     }
 
     [Fact]
+    public async Task CliInterface_NoTargetSkipsCsvExtraction()
+    {
+        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        var logPath = Path.Combine(repoRoot, "data", "mock-processor.output");
+        if (File.Exists(logPath))
+        {
+            File.Delete(logPath);
+        }
+
+        var exporterLogPath = Path.Combine(repoRoot, "data", "mock-exporter.output");
+        if (File.Exists(exporterLogPath))
+        {
+            File.Delete(exporterLogPath);
+        }
+
+        try
+        {
+            var ivPath = Path.Combine(tempDir, "dummy.iv");
+            var dvPath = Path.Combine(tempDir, "dummy.dv");
+            File.WriteAllText(ivPath, "<InterfaceView />");
+            File.WriteAllText(dvPath, "<DeploymentView />");
+
+            var templatePath = Path.Combine(repoRoot, "data", "test_in_simple.docx");
+            Assert.True(File.Exists(templatePath), $"Template file not found: {templatePath}");
+
+            var outputDir = Path.Combine(tempDir, "output");
+            Directory.CreateDirectory(outputDir);
+            var outputPath = Path.Combine(outputDir, "no-target.docx");
+
+            var mockProcessor = Path.Combine(repoRoot, "data", "mock-processor.sh");
+            Assert.True(File.Exists(mockProcessor), $"Mock processor not found: {mockProcessor}");
+
+            var mockExporter = Path.Combine(repoRoot, "data", "mock-exporter.sh");
+            Assert.True(File.Exists(mockExporter), $"Mock exporter not found: {mockExporter}");
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"run --project \"src/TasteDocumentGenerator/TasteDocumentGenerator.csproj\" -- generate -t \"{templatePath}\" -i \"{ivPath}\" -d \"{dvPath}\" -o \"{outputPath}\" --template-processor \"{mockProcessor}\" --system-object-exporter \"{mockExporter}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                WorkingDirectory = repoRoot
+            };
+
+            using var process = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start dotnet run process");
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+
+            Assert.Equal(0, process.ExitCode);
+            Assert.True(File.Exists(outputPath), "Output file should be created");
+
+            // Verify mock processor was called and that it was NOT passed a --target
+            Assert.True(File.Exists(logPath), "Mock processor log should exist");
+            var logContents = await File.ReadAllTextAsync(logPath);
+            Assert.DoesNotContain("--target", logContents);
+
+            // Verify CSV extraction was skipped: exporter should not have been invoked
+            Assert.False(File.Exists(exporterLogPath), "Mock exporter log should not exist when no target provided");
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                if (File.Exists(logPath))
+                {
+                    File.Delete(logPath);
+                }
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                if (File.Exists(exporterLogPath))
+                {
+                    File.Delete(exporterLogPath);
+                }
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    [Fact]
     public async Task CliInterface_ExecutesTemplate()
     {
         /*

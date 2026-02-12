@@ -38,7 +38,7 @@ public sealed class Orchestrator
         public string? DeploymentViewPath { get; init; }
         public string? Opus2ModelPath { get; init; }
         public string? OutputPath { get; init; }
-        public string Target { get; init; } = "ASW";
+        public string? Target { get; init; }
         public string TemplateDirectory { get; init; } = string.Empty;
         public string? TemplateProcessorBinary { get; init; }
         public string? SystemObjectExporterBinary { get; init; }
@@ -54,7 +54,7 @@ public sealed class Orchestrator
         var interfaceViewPath = EnsureExistingFile(parameters.InterfaceViewPath, nameof(parameters.InterfaceViewPath));
         var deploymentViewPath = EnsureExistingFile(parameters.DeploymentViewPath, nameof(parameters.DeploymentViewPath));
         var outputPath = EnsureWritablePath(parameters.OutputPath, nameof(parameters.OutputPath));
-        var target = EnsureNotEmpty(parameters.Target, nameof(parameters.Target));
+        var target = parameters.Target;
         var templateDirectory = parameters.TemplateDirectory ?? string.Empty;
         var templateProcessorBinary = parameters.TemplateProcessorBinary;
         var exporterBinary = string.IsNullOrWhiteSpace(parameters.SystemObjectExporterBinary)
@@ -70,7 +70,7 @@ public sealed class Orchestrator
 
         try
         {
-            var csvFiles = await (string.IsNullOrWhiteSpace(parameters.Opus2ModelPath)
+            var csvFiles = await ((string.IsNullOrWhiteSpace(parameters.Opus2ModelPath) || string.IsNullOrWhiteSpace(target))
                 ? (Func<Task<IReadOnlyList<string>>>)(() => Task.FromResult((IReadOnlyList<string>)Array.Empty<string>()))
                 : () =>
                 {
