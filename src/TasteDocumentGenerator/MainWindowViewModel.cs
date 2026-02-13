@@ -104,6 +104,23 @@ public partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel()
     {
         LoadSettings();
+        // If Target is not set but a Deployment View path is available,
+        // attempt to extract the target (partition name with most functions).
+        if (string.IsNullOrWhiteSpace(Target) && !string.IsNullOrWhiteSpace(InputDeploymentViewPath))
+        {
+            try
+            {
+                var extracted = DeploymentViewHelper.GetTargetName(InputDeploymentViewPath);
+                if (!string.IsNullOrWhiteSpace(extracted))
+                {
+                    Target = extracted;
+                }
+            }
+            catch
+            {
+                // Leave Target as-is
+            }
+        }
         PropertyChanged += (s, e) => SaveSettings();
     }
 
