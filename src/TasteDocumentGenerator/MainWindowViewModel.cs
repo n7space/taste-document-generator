@@ -104,6 +104,23 @@ public partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel()
     {
         LoadSettings();
+        // If Target is not set but a Deployment View path is available,
+        // attempt to extract the target (partition name with most functions).
+        if (string.IsNullOrWhiteSpace(Target) && !string.IsNullOrWhiteSpace(InputDeploymentViewPath))
+        {
+            try
+            {
+                var extracted = DeploymentViewHelper.GetTargetName(InputDeploymentViewPath);
+                if (!string.IsNullOrWhiteSpace(extracted))
+                {
+                    Target = extracted;
+                }
+            }
+            catch
+            {
+                // Leave Target as-is
+            }
+        }
         PropertyChanged += (s, e) => SaveSettings();
     }
 
@@ -120,7 +137,7 @@ public partial class MainWindowViewModel : ObservableObject
     private string _inputTemplateDirectoryPath = "";
 
     [ObservableProperty]
-    private string _target = "ASW";
+    private string _target = "";
 
     [ObservableProperty]
     private string _inputTemplatePath = "sdd-template.docx";
@@ -199,6 +216,23 @@ public partial class MainWindowViewModel : ObservableObject
         await Task.CompletedTask;
     }
 
+    [RelayCommand]
+    private async Task SelectInputTemplateDirectoryPathAsync()
+    {
+        var storageProvider = GetStorageProvider();
+
+        var folders = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select template directory"
+        });
+
+        if (folders != null && folders.Count > 0)
+        {
+            InputTemplateDirectoryPath = folders[0].Path.LocalPath;
+        }
+        await Task.CompletedTask;
+    }
+
     private void OpenDocument(string path)
     {
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
@@ -221,7 +255,7 @@ public partial class MainWindowViewModel : ObservableObject
                 DeploymentViewPath = InputDeploymentViewPath,
                 Opus2ModelPath = InputOpus2ModelPath,
                 OutputPath = OutputFilePath,
-                Target = Target,
+                Target = string.IsNullOrWhiteSpace(Target) ? null : Target, // Convert empty string to null
                 TemplateDirectory = InputTemplateDirectoryPath,
                 SystemObjectTypes = ParseSystemObjectTypes(SystemObjectTypesText),
                 Tag = TemplateTag

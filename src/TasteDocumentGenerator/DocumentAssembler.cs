@@ -22,7 +22,7 @@ public class DocumentAssembler : IDocumentAssembler
 
     public class Context
     {
-        public readonly string Target;
+        public readonly string? Target;
         public readonly string TemplateDirectory;
         public readonly string InterfaceViewPath;
         public readonly string DeploymentViewPath;
@@ -31,7 +31,7 @@ public class DocumentAssembler : IDocumentAssembler
         public readonly string Tag;
         public IReadOnlyList<string> SystemObjectCsvFiles { get; }
 
-        public Context(string InterfaceViewPath, string DeploymentViewPath, string Target, string TemplateDirectory, string TemporaryDirectory, string? TemplateProcessor, string? Tag = null, IEnumerable<string>? systemObjectCsvFiles = null)
+        public Context(string InterfaceViewPath, string DeploymentViewPath, string? Target, string TemplateDirectory, string TemporaryDirectory, string? TemplateProcessor, string? Tag = null, IEnumerable<string>? systemObjectCsvFiles = null)
         {
             this.InterfaceViewPath = InterfaceViewPath;
             this.DeploymentViewPath = DeploymentViewPath;
@@ -166,8 +166,11 @@ public class DocumentAssembler : IDocumentAssembler
         processInfo.ArgumentList.Add(Path.Join(context.TemplateDirectory, templatePath));
         processInfo.ArgumentList.Add("-p");
         processInfo.ArgumentList.Add("md2docx");
-        processInfo.ArgumentList.Add("--value");
-        processInfo.ArgumentList.Add($"TARGET={context.Target}");
+        if (!string.IsNullOrWhiteSpace(context.Target))
+        {
+            processInfo.ArgumentList.Add("--value");
+            processInfo.ArgumentList.Add($"TARGET={context.Target}");
+        }
 
         foreach (var csvPath in context.SystemObjectCsvFiles)
         {

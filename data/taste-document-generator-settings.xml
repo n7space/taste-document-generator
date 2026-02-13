@@ -6,7 +6,7 @@
   <InputTemplatePath>sdd-template.docx</InputTemplatePath>
   <OutputFilePath>sdd.docx</OutputFilePath>
   <InputTemplateDirectoryPath />
-  <Target>ASW</Target>
+  <Target></Target>
   <DoOpenDocument>false</DoOpenDocument>
   <SystemObjectTypes>On-board memory, On-board parameter, File System, Event definition, Housekeeping parameter report structure</SystemObjectTypes>
 </Settings>
