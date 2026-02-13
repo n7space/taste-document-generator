@@ -199,6 +199,23 @@ public partial class MainWindowViewModel : ObservableObject
         await Task.CompletedTask;
     }
 
+    [RelayCommand]
+    private async Task SelectInputTemplateDirectoryPathAsync()
+    {
+        var storageProvider = GetStorageProvider();
+
+        var folders = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select template directory"
+        });
+
+        if (folders != null && folders.Count > 0)
+        {
+            InputTemplateDirectoryPath = folders[0].Path.LocalPath;
+        }
+        await Task.CompletedTask;
+    }
+
     private void OpenDocument(string path)
     {
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
